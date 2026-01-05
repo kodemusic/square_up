@@ -1,0 +1,306 @@
+extends Node
+
+## Tile states
+const STATE_NORMAL := 0    # Can be swapped and matched
+const STATE_LOCKED := 1    # Matched and locked, can't be swapped
+const STATE_CLEARING := 2  # Being cleared/animated
+
+## Special color value for empty cells
+const COLOR_NONE := -1
+
+## Emitted when tiles are matched and points are awarded
+signal score_awarded(points: int)
+
+## Board dimensions in grid units
+@export var width := 8
+@export var height := 8
+
+## 2D array storing cell data: board[y][x] -> {color, height, state}
+var board: Array[Array] = []
+
+func _ready() -> void:
+	_init_board(width, height)
+
+## Initialize the board grid with empty cells
+func _init_board(w: int, h: int) -> void:
+	board.clear()
+	for y in range(h):
+		var row: Array[Dictionary] = []
+		for x in range(w):
+			row.append(_make_cell())
+		board.append(row)
+
+## Create a cell dictionary with default or specified values
+func _make_cell(color: int = COLOR_NONE, z: int = 0, state: int = STATE_NORMAL) -> Dictionary:
+	return {
+		"color": color,
+		"height": z,
+		"state": state,
+	}
+
+## Get the cell data at grid position (x, y)
+func get_cell(x: int, y: int) -> Dictionary:
+	return board[y][x]
+
+## Set all properties of a cell at grid position (x, y)
+func set_cell(x: int, y: int, color: int, z: int, state: int) -> void:
+	board[y][x]["color"] = color
+	board[y][x]["height"] = z
+	board[y][x]["state"] = state
+
+## Convert grid coordinates to isometric screen position
+## Diamond isometric projection: rotate grid 45° and compress Y axis
+func grid_to_iso(row: int, col: int, z: int, tile_width: float, tile_height: float, height_step: float) -> Vector2:
+	# X position: difference of col and row determines horizontal placement
+	var x := (col - row) * (tile_width * 0.5)
+	# Y position: sum of col and row determines depth, subtract height offset
+	var y := (col + row) * (tile_height * 0.5) - (z * height_step)
+	return Vector2(x, y)
+
+## Attempt to swap two tiles, returns true if swap creates a match
+## Automatically reverts the swap if no match is created
+func try_swap(a: Vector2i, b: Vector2i) -> bool:
+	# Check basic swap validity (adjacency, states, height)
+	if not _can_swap(a, b):
+		return false
+	# Perform the swap
+	_swap_colors(a, b)
+	# Check if swap creates a 2x2 match
+	if not _is_swap_valid(a, b):
+		# Revert swap if no match created
+		_swap_colors(a, b)
+		return false
+	return true
+
+## Check if two tiles can be swapped (basic validity, not match logic)
+func _can_swap(a: Vector2i, b: Vector2i) -> bool:
+	# Both positions must be on the board
+	if not _in_bounds(a) or not _in_bounds(b):
+		return false
+	# Tiles must be adjacent (Manhattan distance = 1)
+	if abs(a.x - b.x) + abs(a.y - b.y) != 1:
+		return false
+	var cell_a: Dictionary = board[a.y][a.x]
+	var cell_b: Dictionary = board[b.y][b.x]
+	# Both tiles must be in normal state (not locked)
+	if cell_a["state"] != STATE_NORMAL or cell_b["state"] != STATE_NORMAL:
+		return false
+	# Tiles must be at the same height to swap
+	return cell_a["height"] == cell_b["height"]
+
+## Swap the colors of two cells (doesn't check validity)
+func _swap_colors(a: Vector2i, b: Vector2i) -> void:
+	var cell_a: Dictionary = board[a.y][a.x]
+	var cell_b: Dictionary = board[b.y][b.x]
+	var temp: int = cell_a["color"]
+	cell_a["color"] = cell_b["color"]
+	cell_b["color"] = temp
+
+## Update tile visuals in the tile container after data changes
+## Finds tiles by grid position and updates their color_id
+func update_tile_visuals(tile_container: Node2D) -> void:
+	for tile in tile_container.get_children():
+		if tile is Area2D:
+			var grid_pos: Vector2i = tile.grid_pos
+			var cell: Dictionary = board[grid_pos.y][grid_pos.x]
+			tile.color_id = cell["color"]
+			tile.set_locked(cell["state"] == STATE_LOCKED)
+
+## Check if a swap creates at least one 2x2 match
+func _is_swap_valid(a: Vector2i, b: Vector2i) -> bool:
+	return _has_2x2_match_near(a) or _has_2x2_match_near(b)
+
+## Check if any 2x2 match exists in the 3x3 area around a position
+## Searches all four possible 2x2 squares that could include this position
+func _has_2x2_match_near(pos: Vector2i) -> bool:
+	for dy in range(-1, 1):
+		for dx in range(-1, 1):
+			var top_left := Vector2i(pos.x + dx, pos.y + dy)
+			if _has_2x2_match_at(top_left):
+				return true
+	return false
+
+## Check if a 2x2 match exists at a specific top-left position
+func _has_2x2_match_at(top_left: Vector2i) -> bool:
+	var x := top_left.x
+	var y := top_left.y
+	# Ensure all four cells are within bounds
+	if x < 0 or y < 0 or x + 1 >= width or y + 1 >= height:
+		return false
+	var c0: int = board[y][x]["color"]
+	# Empty cells don't count as matches
+	if c0 == COLOR_NONE:
+		return false
+	# Check if all four cells have the same color
+	return (
+		board[y][x + 1]["color"] == c0
+		and board[y + 1][x]["color"] == c0
+		and board[y + 1][x + 1]["color"] == c0
+	)
+
+## Check if a grid position is within board bounds
+func _in_bounds(pos: Vector2i) -> bool:
+	return pos.x >= 0 and pos.y >= 0 and pos.x < width and pos.y < height
+
+## Find all 2x2 matches on the board
+## Returns array of top-left positions for each matching square
+## Filters out overlapping squares to ensure each tile is only counted once
+func find_all_2x2_matches() -> Array[Vector2i]:
+	var all_matches: Array[Vector2i] = []
+
+	# First, find all possible 2x2 squares
+	for y in range(height - 1):
+		for x in range(width - 1):
+			var c0: Dictionary = board[y][x]
+			# Skip empty cells
+			if c0["color"] == COLOR_NONE:
+				continue
+			# Skip locked cells - already matched tiles can't be matched again
+			if c0["state"] == STATE_LOCKED:
+				continue
+			var c1: Dictionary = board[y][x + 1]
+			var c2: Dictionary = board[y + 1][x]
+			var c3: Dictionary = board[y + 1][x + 1]
+			# All four cells must have same color
+			if c1["color"] != c0["color"] or c2["color"] != c0["color"] or c3["color"] != c0["color"]:
+				continue
+			# All four cells must be at same height
+			if c1["height"] != c0["height"] or c2["height"] != c0["height"] or c3["height"] != c0["height"]:
+				continue
+			# All four cells must be unlocked (in normal state)
+			if c1["state"] != STATE_NORMAL or c2["state"] != STATE_NORMAL or c3["state"] != STATE_NORMAL:
+				continue
+			all_matches.append(Vector2i(x, y))
+
+	# Filter out overlapping squares - keep only non-overlapping ones
+	return _filter_non_overlapping_squares(all_matches)
+
+## Filter a list of 2x2 squares to remove overlaps
+## Returns only non-overlapping squares
+func _filter_non_overlapping_squares(squares: Array[Vector2i]) -> Array[Vector2i]:
+	if squares.size() == 0:
+		return []
+
+	var non_overlapping: Array[Vector2i] = []
+	var used_cells: Dictionary = {}  # Track which cells are already in a square
+
+	# Process squares in order (top-left to bottom-right)
+	for square_pos in squares:
+		var cells_in_square: Array[Vector2i] = [
+			Vector2i(square_pos.x, square_pos.y),
+			Vector2i(square_pos.x + 1, square_pos.y),
+			Vector2i(square_pos.x, square_pos.y + 1),
+			Vector2i(square_pos.x + 1, square_pos.y + 1),
+		]
+
+		# Check if any cell in this square is already used
+		var has_overlap := false
+		for cell in cells_in_square:
+			var key := "%d,%d" % [cell.x, cell.y]
+			if key in used_cells:
+				has_overlap = true
+				break
+
+		# If no overlap, add this square and mark its cells as used
+		if not has_overlap:
+			non_overlapping.append(square_pos)
+			for cell in cells_in_square:
+				var key := "%d,%d" % [cell.x, cell.y]
+				used_cells[key] = true
+
+	return non_overlapping
+
+## Lock all tiles in the given matched squares and award points
+## Points scale with height: base_points * (height + 1)
+func lock_squares(positions: Array[Vector2i], points_per_square: int = 10) -> void:
+	var total_points := 0
+	for top_left in positions:
+		# Validate square is fully on board
+		if top_left.x < 0 or top_left.y < 0 or top_left.x + 1 >= width or top_left.y + 1 >= height:
+			continue
+		var square_height: int = board[top_left.y][top_left.x]["height"]
+		# Define all four tiles in this 2x2 square
+		var tiles: Array[Vector2i] = [
+			Vector2i(top_left.x, top_left.y),
+			Vector2i(top_left.x + 1, top_left.y),
+			Vector2i(top_left.x, top_left.y + 1),
+			Vector2i(top_left.x + 1, top_left.y + 1),
+		]
+		# Lock each tile in the square
+		for pos in tiles:
+			if not _set_locked(pos):
+				continue
+		# Award points with height multiplier (height 0 = 1x, height 1 = 2x, etc.)
+		total_points += points_per_square * (square_height + 1)
+	if total_points > 0:
+		emit_signal("score_awarded", total_points)
+
+## Lock a single cell, returns true if state changed
+func _set_locked(pos: Vector2i) -> bool:
+	if not _in_bounds(pos):
+		return false
+	var cell: Dictionary = board[pos.y][pos.x]
+	# Don't lock already locked cells
+	if cell["state"] == STATE_LOCKED:
+		return false
+	cell["state"] = STATE_LOCKED
+	return true
+
+## Load a level and spawn tiles into the tile container
+## tile_scene: PackedScene reference to Tile.tscn
+## tile_container: Node2D to add tiles to
+## level: LevelData to load
+## tile_width, tile_height: Size of tile in pixels for isometric positioning
+## height_step: Vertical offset per height level
+## input_router: Optional InputRouter to connect tile signals
+func load_level(tile_scene: PackedScene, tile_container: Node2D, level: LevelData,
+				tile_width: float = 128.0, tile_height: float = 64.0, height_step: float = 8.0,
+				input_router: Node = null) -> void:
+	# Clear existing tiles
+	for child in tile_container.get_children():
+		child.queue_free()
+
+	# Resize board to match level dimensions
+	width = level.width
+	height = level.height
+	_init_board(level.width, level.height)
+
+	# Populate board data from level starting grid
+	for y in range(level.height):
+		for x in range(level.width):
+			var color_id: int = level.starting_grid[y][x]
+			# Set cell data (assuming height 0 for now, can be extended later)
+			set_cell(x, y, color_id, 0, STATE_NORMAL)
+
+	# Spawn tile visuals for each non-empty cell
+	print("Spawning tiles with dimensions: %fx%f, height_step: %f" % [tile_width, tile_height, height_step])
+	for y in range(height):
+		for x in range(width):
+			var cell: Dictionary = get_cell(x, y)
+			if cell["color"] != COLOR_NONE:
+				var tile := tile_scene.instantiate() as Area2D
+
+				# Set tile properties
+				tile.grid_pos = Vector2i(x, y)
+				tile.color_id = cell["color"]
+				tile.height = cell["height"]
+
+				# Debug color assignment
+				if (x == 0 and y == 0) or (x == 1 and y == 0) or (x == 2 and y == 0):
+					print("  Tile [%d,%d] color_id: %d" % [x, y, cell["color"]])
+
+				# Position tile in isometric space
+				var iso_pos := grid_to_iso(y, x, cell["height"],
+											tile_width, tile_height, height_step)
+				tile.position = iso_pos
+
+				# Debug output for corners
+				if (x == 0 and y == 0) or (x == width-1 and y == 0) or (x == 0 and y == height-1):
+					print("  Tile [%d,%d] -> iso_pos: %v" % [x, y, iso_pos])
+
+				# Add to container
+				tile_container.add_child(tile)
+
+				# Connect tile to input router if provided
+				if input_router != null and input_router.has_method("connect_tile"):
+					input_router.connect_tile(tile)

@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://d2autq3odb8g"]
+
+[ext_resource type="Script" uid="uid://btpgsbd32f31v" path="res://scripts/board.gd" id="1_78nn4"]
+
+[node name="BoardRoot" type="Node"]
+script = ExtResource("1_78nn4")
+
+[node name="BoardController" type="Node" parent="."]
+
+[node name="TileContainer" type="Node2D" parent="."]
+
+[node name="Overlay" type="Node2D" parent="."]
+
+[node name="AimLine" type="Line2D" parent="Overlay"]
+
+[node name="Selection" type="Node2D" parent="Overlay"]
+
+[node name="TweenHost" type="Node" parent="."]

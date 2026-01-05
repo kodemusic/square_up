@@ -1,0 +1,132 @@
+[gd_scene load_steps=2 format=3 uid="uid://dfd8esgememoj"]
+
+[ext_resource type="Script" uid="uid://ia6pq1wjk26b" path="res://scripts/hud.gd" id="1_qpvh6"]
+
+[node name="Hud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_qpvh6")
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 80.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="ScoreBox" type="PanelContainer" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBox" type="VBoxContainer" parent="TopBar/ScoreBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TopBar/ScoreBox/VBox"]
+layout_mode = 2
+text = "SCORE"
+horizontal_alignment = 1
+
+[node name="ScoreValue" type="Label" parent="TopBar/ScoreBox/VBox"]
+layout_mode = 2
+text = "0"
+horizontal_alignment = 1
+
+[node name="MovesBox" type="PanelContainer" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBox" type="VBoxContainer" parent="TopBar/MovesBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TopBar/MovesBox/VBox"]
+layout_mode = 2
+text = "MOVES"
+horizontal_alignment = 1
+
+[node name="MovesValue" type="Label" parent="TopBar/MovesBox/VBox"]
+layout_mode = 2
+text = "0"
+horizontal_alignment = 1
+
+[node name="GoalBox" type="PanelContainer" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBox" type="VBoxContainer" parent="TopBar/GoalBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="TopBar/GoalBox/VBox"]
+layout_mode = 2
+text = "SQUARES"
+horizontal_alignment = 1
+
+[node name="GoalValue" type="Label" parent="TopBar/GoalBox/VBox"]
+layout_mode = 2
+text = "0 / 0"
+horizontal_alignment = 1
+
+[node name="CenterBanner" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -100.0
+offset_right = 200.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterBanner"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterBanner/Panel"]
+layout_mode = 2
+
+[node name="BannerTitle" type="Label" parent="CenterBanner/Panel/VBox"]
+layout_mode = 2
+text = "SQUARE UP!"
+horizontal_alignment = 1
+
+[node name="BannerMessage" type="Label" parent="CenterBanner/Panel/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="SquareUpPopup" type="CenterContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -50.0
+offset_right = 150.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="SquareUpPopup"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="SquareUpPopup/Panel"]
+layout_mode = 2
+
+[node name="PopupText" type="Label" parent="SquareUpPopup/Panel/VBox"]
+layout_mode = 2
+text = "SQUARE UP!"
+horizontal_alignment = 1
+
+[node name="PopupPoints" type="Label" parent="SquareUpPopup/Panel/VBox"]
+layout_mode = 2
+text = "+100"
+horizontal_alignment = 1
