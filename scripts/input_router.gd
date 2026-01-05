@@ -47,6 +47,9 @@ func _on_tile_tapped(tile: Area2D) -> void:
 	if success:
 		print("Swap successful!")
 
+		# Animate the swap visually
+		await _animate_swap(tile_a, tile_b)
+
 		# Swap the color_ids of the tile objects directly
 		var temp_color: int = tile_a.color_id
 		tile_a.color_id = tile_b.color_id
@@ -75,6 +78,8 @@ func _on_tile_tapped(tile: Area2D) -> void:
 		_deselect_tile()
 	else:
 		print("Swap failed - invalid move")
+		# Animate invalid swap: swap then swap back
+		await _animate_invalid_swap(tile_a, tile_b)
 		# Deselect current and select the new tile instead
 		_deselect_tile()
 		_select_tile(tile)
@@ -155,3 +160,77 @@ func _board_settle_animation() -> void:
 	tween.tween_property(tile_container, "position:y", tile_container.position.y, 0.15)\
 		 .set_trans(Tween.TRANS_BOUNCE)\
 		 .set_ease(Tween.EASE_OUT)
+
+## Animate a successful swap between two tiles
+## Tiles move to each other's positions with a settling pop
+func _animate_swap(tile_a: Area2D, tile_b: Area2D) -> void:
+	# Store original positions
+	var pos_a := tile_a.position
+	var pos_b := tile_b.position
+
+	# Create parallel tweens for both tiles
+	var tween_a := create_tween()
+	var tween_b := create_tween()
+
+	# Move tiles to each other's positions
+	tween_a.tween_property(tile_a, "position", pos_b, 0.15)\
+		   .set_trans(Tween.TRANS_QUAD)\
+		   .set_ease(Tween.EASE_OUT)
+	tween_b.tween_property(tile_b, "position", pos_a, 0.15)\
+		   .set_trans(Tween.TRANS_QUAD)\
+		   .set_ease(Tween.EASE_OUT)
+
+	# Wait for movement to complete
+	await tween_a.finished
+
+	# Quick "pop" on arrival: scale up then back
+	var pop_a := create_tween()
+	var pop_b := create_tween()
+
+	pop_a.tween_property(tile_a, "scale", Vector2(1.03, 1.03), 0.05)
+	pop_a.tween_property(tile_a, "scale", Vector2(1.0, 1.0), 0.05)
+	pop_b.tween_property(tile_b, "scale", Vector2(1.03, 1.03), 0.05)
+	pop_b.tween_property(tile_b, "scale", Vector2(1.0, 1.0), 0.05)
+
+	await pop_a.finished
+
+## Animate an invalid swap: swap then immediately swap back
+## Includes red flash to indicate rejection
+func _animate_invalid_swap(tile_a: Area2D, tile_b: Area2D) -> void:
+	# Store original positions
+	var pos_a := tile_a.position
+	var pos_b := tile_b.position
+
+	# Swap forward (faster than valid swap)
+	var tween_a := create_tween()
+	var tween_b := create_tween()
+
+	tween_a.tween_property(tile_a, "position", pos_b, 0.12)\
+		   .set_trans(Tween.TRANS_QUAD)\
+		   .set_ease(Tween.EASE_OUT)
+	tween_b.tween_property(tile_b, "position", pos_a, 0.12)\
+		   .set_trans(Tween.TRANS_QUAD)\
+		   .set_ease(Tween.EASE_OUT)
+
+	await tween_a.finished
+
+	# Red flash to indicate "nope"
+	var flash_a := create_tween()
+	var flash_b := create_tween()
+	flash_a.tween_property(tile_a, "modulate", Color(1.5, 0.5, 0.5), 0.08)
+	flash_a.tween_property(tile_a, "modulate", Color.WHITE, 0.08)
+	flash_b.tween_property(tile_b, "modulate", Color(1.5, 0.5, 0.5), 0.08)
+	flash_b.tween_property(tile_b, "modulate", Color.WHITE, 0.08)
+
+	# Swap back immediately
+	var back_a := create_tween()
+	var back_b := create_tween()
+
+	back_a.tween_property(tile_a, "position", pos_a, 0.12)\
+		  .set_trans(Tween.TRANS_QUAD)\
+		  .set_ease(Tween.EASE_OUT)
+	back_b.tween_property(tile_b, "position", pos_b, 0.12)\
+		  .set_trans(Tween.TRANS_QUAD)\
+		  .set_ease(Tween.EASE_OUT)
+
+	await back_a.finished
