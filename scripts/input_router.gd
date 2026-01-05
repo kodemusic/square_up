@@ -55,6 +55,11 @@ func _on_tile_tapped(tile: Area2D) -> void:
 		tile_a.color_id = tile_b.color_id
 		tile_b.color_id = temp_color
 
+		# Swap the grid_pos properties to match new positions
+		var temp_grid_pos: Vector2i = tile_a.grid_pos
+		tile_a.grid_pos = tile_b.grid_pos
+		tile_b.grid_pos = temp_grid_pos
+
 		# Check for matches and lock them
 		var matches: Array[Vector2i] = board.find_all_2x2_matches()
 		if matches.size() > 0:
@@ -182,6 +187,10 @@ func _animate_swap(tile_a: Area2D, tile_b: Area2D) -> void:
 
 	# Wait for movement to complete
 	await tween_a.finished
+
+	# Ensure final positions are exact (fix any floating point errors)
+	tile_a.position = pos_b
+	tile_b.position = pos_a
 
 	# Quick "pop" on arrival: scale up then back
 	var pop_a := create_tween()
