@@ -210,15 +210,26 @@ func _filter_non_overlapping_squares(squares: Array[Vector2i]) -> Array[Vector2i
 
 	return non_overlapping
 
-## Lock all tiles in the given matched squares and award points
+## Award points for matched squares without locking them
 ## Points scale with height: base_points * (height + 1)
-func lock_squares(positions: Array[Vector2i], points_per_square: int = 10) -> void:
+func award_points_for_matches(positions: Array[Vector2i], points_per_square: int = 10) -> void:
 	var total_points := 0
 	for top_left in positions:
 		# Validate square is fully on board
 		if top_left.x < 0 or top_left.y < 0 or top_left.x + 1 >= width or top_left.y + 1 >= height:
 			continue
 		var square_height: int = board[top_left.y][top_left.x]["height"]
+		# Award points with height multiplier (height 0 = 1x, height 1 = 2x, etc.)
+		total_points += points_per_square * (square_height + 1)
+	if total_points > 0:
+		emit_signal("score_awarded", total_points)
+
+## Lock all tiles in the given matched squares (no points awarded)
+func lock_squares(positions: Array[Vector2i]) -> void:
+	for top_left in positions:
+		# Validate square is fully on board
+		if top_left.x < 0 or top_left.y < 0 or top_left.x + 1 >= width or top_left.y + 1 >= height:
+			continue
 		# Define all four tiles in this 2x2 square
 		var tiles: Array[Vector2i] = [
 			Vector2i(top_left.x, top_left.y),
@@ -228,12 +239,7 @@ func lock_squares(positions: Array[Vector2i], points_per_square: int = 10) -> vo
 		]
 		# Lock each tile in the square
 		for pos in tiles:
-			if not _set_locked(pos):
-				continue
-		# Award points with height multiplier (height 0 = 1x, height 1 = 2x, etc.)
-		total_points += points_per_square * (square_height + 1)
-	if total_points > 0:
-		emit_signal("score_awarded", total_points)
+			_set_locked(pos)
 
 ## Lock a single cell, returns true if state changed
 func _set_locked(pos: Vector2i) -> bool:
@@ -245,6 +251,69 @@ func _set_locked(pos: Vector2i) -> bool:
 		return false
 	cell["state"] = STATE_LOCKED
 	return true
+
+## Clear locked squares from the board (set to empty)
+## Used in cascade mode to remove matched squares from play
+func clear_locked_squares(positions: Array[Vector2i]) -> void:
+	for top_left in positions:
+		# Validate square is fully on board
+		if top_left.x < 0 or top_left.y < 0 or top_left.x + 1 >= width or top_left.y + 1 >= height:
+			continue
+		# Define all four tiles in this 2x2 square
+		var tiles: Array[Vector2i] = [
+			Vector2i(top_left.x, top_left.y),
+			Vector2i(top_left.x + 1, top_left.y),
+			Vector2i(top_left.x, top_left.y + 1),
+			Vector2i(top_left.x + 1, top_left.y + 1),
+		]
+		# Clear each tile (set to empty)
+		for pos in tiles:
+			if _in_bounds(pos):
+				set_cell(pos.x, pos.y, COLOR_NONE, 0, STATE_NORMAL)
+
+## Apply gravity: tiles drop into empty spaces below them
+## Returns array of moves that occurred: [{from: Vector2i, to: Vector2i}]
+func apply_gravity() -> Array[Dictionary]:
+	var moves: Array[Dictionary] = []
+
+	# Process each column from bottom to top
+	for x in range(width):
+		# Start from bottom row, look for empty cells
+		for y in range(height - 1, -1, -1):
+			var cell := get_cell(x, y)
+			if cell["color"] == COLOR_NONE:
+				# Find the first non-empty tile above this empty space
+				for y_above in range(y - 1, -1, -1):
+					var above := get_cell(x, y_above)
+					if above["color"] != COLOR_NONE:
+						# Move tile down
+						set_cell(x, y, above["color"], above["height"], above["state"])
+						set_cell(x, y_above, COLOR_NONE, 0, STATE_NORMAL)
+						moves.append({
+							"from": Vector2i(x, y_above),
+							"to": Vector2i(x, y)
+						})
+						break
+
+	return moves
+
+## Spawn new random tiles to fill empty spaces
+## colors: Array of color IDs to randomly choose from
+## Returns array of positions where new tiles were spawned
+func refill_empty_spaces(colors: Array[int]) -> Array[Vector2i]:
+	var spawned: Array[Vector2i] = []
+
+	# Scan entire board for empty cells
+	for y in range(height):
+		for x in range(width):
+			var cell := get_cell(x, y)
+			if cell["color"] == COLOR_NONE:
+				# Spawn random color
+				var random_color: int = colors[randi() % colors.size()]
+				set_cell(x, y, random_color, 0, STATE_NORMAL)
+				spawned.append(Vector2i(x, y))
+
+	return spawned
 
 ## Load a level and spawn tiles into the tile container
 ## tile_scene: PackedScene reference to Tile.tscn
@@ -294,9 +363,13 @@ func load_level(tile_scene: PackedScene, tile_container: Node2D, level: LevelDat
 											tile_width, tile_height, height_step)
 				tile.position = iso_pos
 
+				# Set z-index for proper isometric depth sorting
+				# Tiles closer to camera (higher y+x) need higher z-index to render on top
+				tile.z_index = y + x
+
 				# Debug output for corners
 				if (x == 0 and y == 0) or (x == width-1 and y == 0) or (x == 0 and y == height-1):
-					print("  Tile [%d,%d] -> iso_pos: %v" % [x, y, iso_pos])
+					print("  Tile [%d,%d] -> iso_pos: %v, z_index: %d" % [x, y, iso_pos, tile.z_index])
 
 				# Add to container
 				tile_container.add_child(tile)

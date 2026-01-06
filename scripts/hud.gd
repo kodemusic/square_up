@@ -9,6 +9,9 @@ signal restart_requested
 ## Emitted when user wants to undo last move
 signal undo_requested
 
+## Emitted when user wants to go to next level
+signal next_level_requested
+
 ## Current game score
 var current_score := 0
 
@@ -34,14 +37,26 @@ var squares_goal := 0
 @onready var popup := get_node("SquareUpPopup") as CenterContainer
 @onready var popup_text := get_node("SquareUpPopup/Panel/VBox/PopupText") as Label
 @onready var popup_points := get_node("SquareUpPopup/Panel/VBox/PopupPoints") as Label
+@onready var retry_button := get_node("CenterBanner/Panel/VBox/ButtonContainer/RetryButton") as Button
+@onready var next_level_button := get_node("CenterBanner/Panel/VBox/ButtonContainer/NextLevelButton") as Button
+@onready var undo_button := get_node("BottomBar/UndoButton") as Button
+
+## Whether undo has been used this level (only 1 undo per level for now)
+var undo_used := false
 
 func _ready() -> void:
 	# Hide banner initially
 	banner.visible = false
 
+	# Connect button signals
+	retry_button.pressed.connect(_on_retry_pressed)
+	next_level_button.pressed.connect(_on_next_level_pressed)
+	undo_button.pressed.connect(_on_undo_pressed)
+
 	# Initialize display
 	update_score(0)
 	update_moves(0)
+	update_undo_button()
 
 ## Update the score display
 ## points: New total score to display
@@ -87,6 +102,10 @@ func show_level_complete_with_stars(stars: int, moves_remaining: int) -> void:
 	banner_title.text = "LEVEL COMPLETE!"
 	banner_message.text = "%s\nScore: %d\nMoves Left: %d" % [star_text, current_score, moves_remaining]
 
+	# Show both buttons on win
+	retry_button.visible = true
+	next_level_button.visible = true
+
 	# Slide in animation
 	banner.position.y = -200
 	banner.modulate = Color(1, 1, 1, 0)
@@ -103,6 +122,12 @@ func show_level_complete_with_stars(stars: int, moves_remaining: int) -> void:
 func show_level_failed() -> void:
 	banner_title.text = "OUT OF MOVES"
 	banner_message.text = "Try Again?"
+
+	# Only show retry button on fail
+	retry_button.visible = true
+	next_level_button.visible = false
+
+	banner.visible = true
 	banner.visible = true
 
 ## Show custom banner message
@@ -184,7 +209,31 @@ func reset() -> void:
 	current_score = 0
 	moves_made = 0
 	squares_completed = 0
+	undo_used = false
 	update_score(0)
 	update_moves(0)
 	update_squares(0)
+	update_undo_button()
 	hide_banner()
+
+## Update undo button state (disabled if already used)
+func update_undo_button() -> void:
+	if undo_button != null:
+		undo_button.disabled = undo_used
+		undo_button.text = "UNDO USED" if undo_used else "UNDO"
+
+## Mark undo as used
+func mark_undo_used() -> void:
+	undo_used = true
+	update_undo_button()
+
+## Button callbacks
+func _on_retry_pressed() -> void:
+	emit_signal("restart_requested")
+
+func _on_next_level_pressed() -> void:
+	emit_signal("next_level_requested")
+
+func _on_undo_pressed() -> void:
+	if not undo_used:
+		emit_signal("undo_requested")

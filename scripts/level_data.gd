@@ -19,6 +19,12 @@ var starting_grid: Array[Array] = []  # [y][x] -> color_id
 ## Solution data (optional, for reverse-solving)
 var solution_moves: Array[Dictionary] = []  # [{from: Vector2i, to: Vector2i}]
 
+## Gameplay mechanics configuration
+var lock_on_match: bool = true       # Lock matched squares?
+var clear_locked_squares: bool = false  # Remove locked squares from board?
+var enable_gravity: bool = false     # Tiles drop down into gaps?
+var refill_from_top: bool = false    # Spawn new tiles at top?
+
 ## Create a simple level from a goal state by reverse-solving
 ## goal_grid: 2D array of color IDs representing the solved state
 ## moves: Array of swap dictionaries in forward order: [{from: Vector2i, to: Vector2i}]
@@ -147,6 +153,7 @@ static func create_example_level() -> LevelData:
 
 ## Level 1: First teaching level - 4x4 with 2 colors
 ## Random grid with no starting matches - player must find valid swaps
+## Tutorial level: no locking, just learn matching mechanics
 static func create_level_1() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 1
@@ -155,10 +162,16 @@ static func create_level_1() -> LevelData:
 	level.height = 4
 	level.move_limit = 10  # 10 moves to complete
 	level.target_score = 20  # 2 squares × 10 points
-	level.squares_goal = 2  # Need to complete 2 squares
+	level.squares_goal = 1  # Need to complete 1 square
 
 	# Generate a random 4x4 grid with 2 colors and no 2x2 matches
 	level.starting_grid = generate_grid_no_squares(4, 4, 2)
+
+	# Tutorial mode: no locking, no clearing, no gravity, no refill
+	level.lock_on_match = false
+	level.clear_locked_squares = false
+	level.enable_gravity = false
+	level.refill_from_top = false
 
 	return level
 
@@ -175,5 +188,31 @@ static func create_level_2() -> LevelData:
 
 	# Generate a random 4x4 grid with 3 colors and no 2x2 matches
 	level.starting_grid = generate_grid_no_squares(4, 4, 3)
+	level.lock_on_match = false
+	level.clear_locked_squares = false
+	level.enable_gravity = false
+	level.refill_from_top = false
+	return level
+
+## Endless Mode: Infinite gameplay with cascading matches
+## Matches lock → clear → drop → refill → cascade
+static func create_level_endless() -> LevelData:
+	var level := LevelData.new()
+	level.level_id = 999
+	level.level_name = "Endless Mode"
+	level.width = 4
+	level.height = 4
+	level.move_limit = 0  # Unlimited moves
+	level.target_score = 0  # No target, play forever
+	level.squares_goal = 999999  # Effectively infinite
+
+	# Generate a random 4x4 grid with 3 colors and no 2x2 matches
+	level.starting_grid = generate_grid_no_squares(4, 4, 3)
+
+	# Full cascade mode: lock → clear → gravity → refill → cascade
+	level.lock_on_match = true
+	level.clear_locked_squares = true
+	level.enable_gravity = true
+	level.refill_from_top = true
 
 	return level

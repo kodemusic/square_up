@@ -13,10 +13,28 @@ signal swap_completed
 ## Currently selected tile (first tap)
 var selected_tile: Area2D = null
 
+## Current level being played (set by game controller)
+var current_level: LevelData = null
+
+## Last swap data for undo functionality
+var last_swap_tile_a: Area2D = null
+var last_swap_tile_b: Area2D = null
+var last_swap_valid := false  # True if there's a swap that can be undone
+
+## Whether input is enabled (disabled when level complete/failed)
+var input_enabled := true
+
+## Emitted when undo is performed
+signal undo_completed
+
 func _ready() -> void:
 	# Connect to all tile tapped signals when tiles are spawned
 	# We'll use a different approach - tiles will be connected after spawning
 	pass
+
+## Set the current level configuration (called by game controller)
+func set_current_level(level: LevelData) -> void:
+	current_level = level
 
 ## Connect a tile's tapped signal to this input router
 func connect_tile(tile: Area2D) -> void:
@@ -25,6 +43,10 @@ func connect_tile(tile: Area2D) -> void:
 
 ## Handle tile tap/click events
 func _on_tile_tapped(tile: Area2D) -> void:
+	# Ignore input if board is frozen
+	if not input_enabled:
+		return
+
 	print("Tile tapped at grid_pos: %v, color_id: %d" % [tile.grid_pos, tile.color_id])
 
 	# If no tile is selected, select this one
@@ -50,17 +72,28 @@ func _on_tile_tapped(tile: Area2D) -> void:
 		# Animate the swap visually
 		await _animate_swap(tile_a, tile_b)
 
-		# Swap the color_ids of the tile objects directly
-		var temp_color: int = tile_a.color_id
-		tile_a.color_id = tile_b.color_id
-		tile_b.color_id = temp_color
+		# Store last swap for undo (before updating grid_pos)
+		last_swap_tile_a = tile_a
+		last_swap_tile_b = tile_b
+		last_swap_valid = true
 
 		# Swap the grid_pos properties to match new positions
 		var temp_grid_pos: Vector2i = tile_a.grid_pos
 		tile_a.grid_pos = tile_b.grid_pos
 		tile_b.grid_pos = temp_grid_pos
 
-		# Check for matches and lock them
+		# Sync tile colors from board data (board already swapped them)
+		var cell_a: Dictionary = board.get_cell(tile_a.grid_pos.x, tile_a.grid_pos.y)
+		var cell_b: Dictionary = board.get_cell(tile_b.grid_pos.x, tile_b.grid_pos.y)
+		tile_a.color_id = cell_a["color"]
+		tile_b.color_id = cell_b["color"]
+
+		# Update z-index for proper isometric depth sorting
+		# Tiles closer to camera (higher y+x) need higher z-index to render on top
+		tile_a.z_index = tile_a.grid_pos.y + tile_a.grid_pos.x
+		tile_b.z_index = tile_b.grid_pos.y + tile_b.grid_pos.x
+
+		# Check for matches
 		var matches: Array[Vector2i] = board.find_all_2x2_matches()
 		if matches.size() > 0:
 			print("Found %d matches!" % matches.size())
@@ -68,11 +101,31 @@ func _on_tile_tapped(tile: Area2D) -> void:
 			# Visual feedback: flash matched tiles
 			await _flash_matched_squares(matches)
 
-			# Lock squares and award points
-			board.lock_squares(matches, 10)
+			# Always award points for matches
+			board.award_points_for_matches(matches, 10)
 
-			# Update locked state on affected tiles
-			_update_locked_tiles(matches)
+			# Only lock if level configuration allows it
+			if current_level != null and current_level.lock_on_match:
+				# Lock the matched squares
+				board.lock_squares(matches)
+
+				# Update locked state on affected tiles
+				_update_locked_tiles(matches)
+
+				# Clear locked squares if enabled
+				if current_level.clear_locked_squares:
+					await _clear_locked_squares(matches)
+
+					# Apply gravity if enabled
+					if current_level.enable_gravity:
+						await _apply_gravity()
+
+						# Refill empty spaces if enabled
+						if current_level.refill_from_top:
+							await _refill_board()
+
+							# Check for cascade matches
+							await _check_cascade_matches()
 
 			# Board settle animation
 			_board_settle_animation()
@@ -101,6 +154,68 @@ func _deselect_tile() -> void:
 		selected_tile.set_highlighted(false)
 		print("Deselected tile at %v" % selected_tile.grid_pos)
 		selected_tile = null
+
+## Undo the last swap (can only be called once per level)
+## Returns true if undo was performed
+func undo_last_swap() -> bool:
+	if not last_swap_valid:
+		print("No swap to undo")
+		return false
+	
+	if last_swap_tile_a == null or last_swap_tile_b == null:
+		print("Undo tiles are invalid")
+		return false
+	
+	print("Undoing last swap...")
+	
+	# Deselect any selected tile first
+	_deselect_tile()
+	
+	var tile_a: Area2D = last_swap_tile_a
+	var tile_b: Area2D = last_swap_tile_b
+	
+	# Swap back in board data (this just swaps colors since swap is its own inverse)
+	board._swap_colors(tile_a.grid_pos, tile_b.grid_pos)
+	
+	# Animate the swap back visually
+	await _animate_swap(tile_a, tile_b)
+	
+	# Swap the grid_pos properties back
+	var temp_grid_pos: Vector2i = tile_a.grid_pos
+	tile_a.grid_pos = tile_b.grid_pos
+	tile_b.grid_pos = temp_grid_pos
+	
+	# Sync tile colors from board data
+	var cell_a: Dictionary = board.get_cell(tile_a.grid_pos.x, tile_a.grid_pos.y)
+	var cell_b: Dictionary = board.get_cell(tile_b.grid_pos.x, tile_b.grid_pos.y)
+	tile_a.color_id = cell_a["color"]
+	tile_b.color_id = cell_b["color"]
+	
+	# Update z-index for proper isometric depth sorting
+	tile_a.z_index = tile_a.grid_pos.y + tile_a.grid_pos.x
+	tile_b.z_index = tile_b.grid_pos.y + tile_b.grid_pos.x
+	
+	# Clear undo state
+	last_swap_valid = false
+	last_swap_tile_a = null
+	last_swap_tile_b = null
+	
+	emit_signal("undo_completed")
+	print("Undo completed")
+	return true
+
+## Clear undo state (called when starting new level)
+func clear_undo_state() -> void:
+	last_swap_valid = false
+	last_swap_tile_a = null
+	last_swap_tile_b = null
+
+## Enable or disable input (call with false to freeze board)
+func set_input_enabled(enabled: bool) -> void:
+	input_enabled = enabled
+	# Deselect any selected tile when disabling
+	if not enabled:
+		_deselect_tile()
 
 ## Update locked state for tiles in matched squares
 func _update_locked_tiles(match_positions: Array[Vector2i]) -> void:
@@ -243,3 +358,158 @@ func _animate_invalid_swap(tile_a: Area2D, tile_b: Area2D) -> void:
 		  .set_ease(Tween.EASE_OUT)
 
 	await back_a.finished
+
+## Clear locked squares with fade out animation
+## Also removes tile visuals from scene
+func _clear_locked_squares(positions: Array[Vector2i]) -> void:
+	# Fade out and shrink tiles
+	for top_left in positions:
+		var tiles_to_clear := [
+			Vector2i(top_left.x, top_left.y),
+			Vector2i(top_left.x + 1, top_left.y),
+			Vector2i(top_left.x, top_left.y + 1),
+			Vector2i(top_left.x + 1, top_left.y + 1),
+		]
+
+		for tile_pos in tiles_to_clear:
+			var tile := _find_tile_at_grid_pos(tile_pos)
+			if tile != null:
+				var tween := create_tween()
+				tween.set_parallel(true)
+				tween.tween_property(tile, "modulate:a", 0.0, 0.25)
+				tween.tween_property(tile, "scale", Vector2(0.5, 0.5), 0.25)
+
+	# Wait for animation to complete
+	await get_tree().create_timer(0.3).timeout
+
+	# Remove from board data
+	board.clear_locked_squares(positions)
+
+	# Delete tile visuals
+	for top_left in positions:
+		var tiles_to_delete := [
+			Vector2i(top_left.x, top_left.y),
+			Vector2i(top_left.x + 1, top_left.y),
+			Vector2i(top_left.x, top_left.y + 1),
+			Vector2i(top_left.x + 1, top_left.y + 1),
+		]
+
+		for tile_pos in tiles_to_delete:
+			var tile := _find_tile_at_grid_pos(tile_pos)
+			if tile != null:
+				tile.queue_free()
+
+## Apply gravity with tile drop animation
+func _apply_gravity() -> void:
+	const TILE_WIDTH := 128.0
+	const TILE_HEIGHT := 64.0
+	const HEIGHT_STEP := 8.0
+
+	var moves: Array[Dictionary] = board.apply_gravity()
+
+	# Animate tiles dropping
+	for move in moves:
+		var tile := _find_tile_at_grid_pos(move["from"])
+		if tile != null:
+			var target_pos: Vector2 = board.grid_to_iso(
+				move["to"].y, move["to"].x, 0,
+				TILE_WIDTH, TILE_HEIGHT, HEIGHT_STEP
+			)
+
+			var tween := create_tween()
+			tween.tween_property(tile, "position", target_pos, 0.3)\
+				 .set_trans(Tween.TRANS_BOUNCE)\
+				 .set_ease(Tween.EASE_OUT)
+
+			# Update tile's grid position
+			tile.grid_pos = move["to"]
+
+			# Update z-index for new position
+			tile.z_index = move["to"].y + move["to"].x
+
+	# Wait for all drops to complete
+	await get_tree().create_timer(0.35).timeout
+
+## Refill board with new tiles spawning from above
+func _refill_board() -> void:
+	const TILE_WIDTH := 128.0
+	const TILE_HEIGHT := 64.0
+	const HEIGHT_STEP := 8.0
+
+	# Get available colors from level (default to 3 colors)
+	var colors := [0, 1, 2]  # Red, Blue, Green
+
+	# Spawn new tiles in board data
+	var spawned: Array[Vector2i] = board.refill_empty_spaces(colors)
+
+	# Get reference to tile scene
+	var tile_scene := preload("res://scenes/Tile.tscn")
+
+	# Spawn tile visuals above board and drop them in
+	for spawn_pos in spawned:
+		var tile := tile_scene.instantiate() as Area2D
+		tile.grid_pos = spawn_pos
+		tile.color_id = board.get_cell(spawn_pos.x, spawn_pos.y)["color"]
+		tile.height = 0
+
+		# Calculate final position
+		var final_pos: Vector2 = board.grid_to_iso(
+			spawn_pos.y, spawn_pos.x, 0,
+			TILE_WIDTH, TILE_HEIGHT, HEIGHT_STEP
+		)
+
+		# Start above board
+		var start_pos: Vector2 = final_pos + Vector2(0, -200)
+		tile.position = start_pos
+		tile.modulate.a = 0
+
+		# Set z-index
+		tile.z_index = spawn_pos.y + spawn_pos.x
+
+		# Add to scene
+		tile_container.add_child(tile)
+
+		# Connect to input router
+		connect_tile(tile)
+
+		# Animate: drop and fade in
+		var tween := create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(tile, "position", final_pos, 0.4)\
+			 .set_trans(Tween.TRANS_BOUNCE)\
+			 .set_ease(Tween.EASE_OUT)
+		tween.tween_property(tile, "modulate:a", 1.0, 0.2)
+
+	# Wait for all spawns to complete
+	await get_tree().create_timer(0.45).timeout
+
+## Check for cascade matches (recursive)
+## Called after refilling to check if new tiles created matches
+func _check_cascade_matches() -> void:
+	var matches: Array[Vector2i] = board.find_all_2x2_matches()
+	if matches.size() > 0:
+		print("Cascade: Found %d matches!" % matches.size())
+
+		# Flash matched squares
+		await _flash_matched_squares(matches)
+
+		# Award points
+		board.award_points_for_matches(matches, 10)
+
+		# Check if we should lock (shouldn't happen in cascade but check anyway)
+		if current_level != null and current_level.lock_on_match:
+			board.lock_squares(matches)
+			_update_locked_tiles(matches)
+
+			# Continue cascade if enabled
+			if current_level.clear_locked_squares:
+				await _clear_locked_squares(matches)
+
+				if current_level.enable_gravity:
+					await _apply_gravity()
+
+					if current_level.refill_from_top:
+						await _refill_board()
+
+						# Recursive cascade check
+						await _check_cascade_matches()
