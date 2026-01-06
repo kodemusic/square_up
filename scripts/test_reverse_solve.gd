@@ -40,7 +40,7 @@ func _ready() -> void:
 	print("\n=== Demo Complete ===")
 
 ## Simple grid printer without the class instance
-func _print_simple_grid(grid: Array[Array]) -> void:
+func _print_simple_grid(grid: Array) -> void:
 	for y in range(grid.size()):
 		var row_str := "  "
 		for x in range(grid[y].size()):

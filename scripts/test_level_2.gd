@@ -78,14 +78,14 @@ func _ready() -> void:
 	print("\n=== Validation Complete ===")
 
 ## Test if a swap creates any 2x2 match
-func _test_swap_creates_match(grid: Array[Array], from: Vector2i, to: Vector2i) -> bool:
+func _test_swap_creates_match(grid: Array, from: Vector2i, to: Vector2i) -> bool:
 	# Create a copy and apply the swap
 	var test_grid := LevelData._copy_grid(grid)
 	LevelData._swap_cells(test_grid, from, to)
 
 	# Check for any 2x2 matches
 	var height := test_grid.size()
-	var width := test_grid[0].size()
+	var width: int = test_grid[0].size()
 
 	for y in range(height - 1):
 		for x in range(width - 1):
@@ -100,14 +100,14 @@ func _test_swap_creates_match(grid: Array[Array], from: Vector2i, to: Vector2i) 
 	return false
 
 ## Apply a sequence of moves to a grid
-func _apply_moves(grid: Array[Array], moves: Array[Dictionary]) -> Array[Array]:
+func _apply_moves(grid: Array, moves: Array[Dictionary]) -> Array:
 	var result := LevelData._copy_grid(grid)
 	for move in moves:
 		LevelData._swap_cells(result, move["from"], move["to"])
 	return result
 
 ## Print a grid
-func _print_grid(grid: Array[Array]) -> void:
+func _print_grid(grid: Array) -> void:
 	for y in range(grid.size()):
 		var row_str := "  "
 		for x in range(grid[y].size()):

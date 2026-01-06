@@ -16,7 +16,7 @@ func _ready() -> void:
 ## Test 1: Board already has a match
 func test_already_solved() -> void:
 	print("Test 1: Already solved board")
-	var grid: Array[Array] = [
+	var grid: Array = [
 		[0, 0, 1, 2],
 		[0, 0, 2, 1],
 		[1, 2, 1, 2],
@@ -30,7 +30,7 @@ func test_already_solved() -> void:
 ## Test 2: Simple one-move solution
 func test_one_move_solution() -> void:
 	print("Test 2: One-move solution")
-	var grid: Array[Array] = [
+	var grid: Array = [
 		[1, 0, 1, 2],  # Swap (0,0) <-> (1,0) creates match
 		[0, 0, 2, 1],
 		[1, 2, 1, 2],
@@ -55,7 +55,7 @@ func test_one_move_solution() -> void:
 ## Test 3: Two-move solution
 func test_two_move_solution() -> void:
 	print("Test 3: Two-move solution")
-	var grid: Array[Array] = [
+	var grid: Array = [
 		[1, 0, 1, 2],
 		[0, 2, 2, 1],
 		[1, 0, 1, 2],
@@ -82,7 +82,7 @@ func test_two_move_solution() -> void:
 ## Test 4: Unsolvable board (all different colors)
 func test_unsolvable() -> void:
 	print("Test 4: Unsolvable board")
-	var grid: Array[Array] = [
+	var grid: Array = [
 		[0, 1, 2, 3],
 		[1, 2, 3, 0],
 		[2, 3, 0, 1],
@@ -115,7 +115,7 @@ func test_validate_level_solution() -> void:
 	print()
 
 ## Helper to print a grid
-func _print_grid(grid: Array[Array]) -> void:
+func _print_grid(grid: Array) -> void:
 	for y in range(grid.size()):
 		var row_str := "    "
 		for x in range(grid[y].size()):

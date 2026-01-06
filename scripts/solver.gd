@@ -20,9 +20,15 @@ class BoardState:
 	var parent: BoardState = null   # For path reconstruction
 
 	## Create from 2D array
-	static func from_2d_array(grid_2d: Array[Array]) -> BoardState:
+	static func from_2d_array(grid_2d: Array) -> BoardState:
 		var state := BoardState.new()
 		state.height = grid_2d.size()
+		
+		# Validate grid is not empty
+		if state.height == 0 or grid_2d[0].size() == 0:
+			push_error("Cannot create BoardState from empty grid")
+			return state
+		
 		state.width = grid_2d[0].size()
 		state.grid = PackedInt32Array()
 
@@ -33,8 +39,8 @@ class BoardState:
 		return state
 	
 	## Convert back to 2D array
-	func to_2d_array() -> Array[Array]:
-		var grid_2d: Array[Array] = []
+	func to_2d_array() -> Array:
+		var grid_2d: Array = []
 		for y in range(height):
 			var row: Array = []
 			for x in range(width):
@@ -112,13 +118,13 @@ class SolveResult:
 
 ## Check if a board can be solved within max_moves
 ## Returns true if a solution exists, false otherwise
-static func can_solve(start_grid: Array[Array], max_moves: int) -> bool:
+static func can_solve(start_grid: Array, max_moves: int) -> bool:
 	var result := solve_detailed(start_grid, max_moves)
 	return result.solvable
 
 ## Detailed solve with full diagnostics
 ## Returns SolveResult with solution path and stats
-static func solve_detailed(start_grid: Array[Array], max_moves: int) -> SolveResult:
+static func solve_detailed(start_grid: Array, max_moves: int, max_states: int = 10000) -> SolveResult:
 	var result := SolveResult.new()
 	var start_state := BoardState.from_2d_array(start_grid)
 
@@ -134,11 +140,12 @@ static func solve_detailed(start_grid: Array[Array], max_moves: int) -> SolveRes
 	var queue: Array[BoardState] = [start_state]
 	var visited: Dictionary = {}  # Hash -> true
 	visited[start_state.get_hash()] = true
-	
+
 	var solution_state: BoardState = null
 
 	# BFS search - guarantees shortest path
-	while queue.size() > 0:
+	# OPTIMIZATION: Add max_states limit to prevent explosion
+	while queue.size() > 0 and result.states_explored < max_states:
 		var current: BoardState = queue.pop_front()
 		result.states_explored += 1
 
@@ -204,6 +211,11 @@ static func solve_detailed(start_grid: Array[Array], max_moves: int) -> SolveRes
 		if solution_state != null and solution_state.move_count > 1:
 			break
 
+	# OPTIMIZATION: Early exit if we hit max_states limit
+	if result.states_explored >= max_states and solution_state == null:
+		result.solvable = false
+		return result
+
 	# No solution found
 	if solution_state == null:
 		result.solvable = false
@@ -229,12 +241,12 @@ static func _reconstruct_path(end_state: BoardState) -> Array[Dictionary]:
 
 ## Find a solution path (returns array of moves, or empty if none found)
 ## Uses solve_detailed internally
-static func find_solution(start_grid: Array[Array], max_moves: int) -> Array[Dictionary]:
+static func find_solution(start_grid: Array, max_moves: int) -> Array[Dictionary]:
 	var result := solve_detailed(start_grid, max_moves)
 	return result.solution_path
 
 ## Quick validation: check if a level's solution actually works
-static func validate_solution(start_grid: Array[Array], moves: Array[Dictionary]) -> bool:
+static func validate_solution(start_grid: Array, moves: Array[Dictionary]) -> bool:
 	var state := BoardState.from_2d_array(start_grid)
 
 	# Apply each move
@@ -251,7 +263,7 @@ static func validate_solution(start_grid: Array[Array], moves: Array[Dictionary]
 ## 2. No trivial 1-move solutions (unless intended)
 ## 3. Starting state has no matches
 ## Returns a dictionary with validation results
-static func validate_level(start_grid: Array[Array], move_limit: int, min_solution_depth: int = 2) -> Dictionary:
+static func validate_level(start_grid: Array, move_limit: int, min_solution_depth: int = 2) -> Dictionary:
 	var validation := {
 		"valid": true,
 		"solvable": false,
@@ -297,13 +309,19 @@ static func validate_level(start_grid: Array[Array], move_limit: int, min_soluti
 ## num_colors: Number of colors for noise tiles
 ## Returns: A validated starting grid, or empty array if generation failed
 static func generate_validated_puzzle(
-	goal_grid: Array[Array], 
+	goal_grid: Array, 
 	spine_moves: Array[Dictionary],
 	num_colors: int = 3,
 	max_attempts: int = 10
-) -> Array[Array]:
+) -> Array:
 	var height := goal_grid.size()
-	var width := goal_grid[0].size()
+	
+	# Validate goal_grid is not empty
+	if height == 0 or goal_grid[0].size() == 0:
+		push_error("Cannot generate puzzle from empty goal_grid")
+		return []
+	
+	var width: int = goal_grid[0].size()
 	
 	for attempt in range(max_attempts):
 		# Step 1: Apply spine moves in reverse to get base starting state
@@ -346,7 +364,7 @@ static func generate_validated_puzzle(
 	return []
 
 ## Get cells that are critical to the solution (involved in spine moves or goal match)
-static func _get_critical_cells(moves: Array[Dictionary], goal_grid: Array[Array]) -> Dictionary:
+static func _get_critical_cells(moves: Array[Dictionary], goal_grid: Array) -> Dictionary:
 	var critical := {}  # Vector2i -> true
 	
 	# Add all cells involved in moves
@@ -356,7 +374,10 @@ static func _get_critical_cells(moves: Array[Dictionary], goal_grid: Array[Array
 	
 	# Add cells in the goal match (find 2x2 matches in goal)
 	var height := goal_grid.size()
-	var width := goal_grid[0].size()
+	if height == 0 or goal_grid[0].size() == 0:
+		return critical
+	
+	var width: int = goal_grid[0].size()
 	for y in range(height - 1):
 		for x in range(width - 1):
 			var c0: int = goal_grid[y][x]
@@ -369,8 +390,8 @@ static func _get_critical_cells(moves: Array[Dictionary], goal_grid: Array[Array
 	return critical
 
 ## Helper: Deep copy a 2D grid (static version)
-static func _copy_grid_static(grid: Array[Array]) -> Array[Array]:
-	var copy: Array[Array] = []
+static func _copy_grid_static(grid: Array) -> Array:
+	var copy: Array = []
 	for y in range(grid.size()):
 		var row: Array = []
 		for x in range(grid[y].size()):
@@ -379,7 +400,7 @@ static func _copy_grid_static(grid: Array[Array]) -> Array[Array]:
 	return copy
 
 ## Helper: Swap two cells in a grid (static version)
-static func _swap_cells_static(grid: Array[Array], a: Vector2i, b: Vector2i) -> void:
+static func _swap_cells_static(grid: Array, a: Vector2i, b: Vector2i) -> void:
 	var temp: int = grid[a.y][a.x]
 	grid[a.y][a.x] = grid[b.y][b.x]
 	grid[b.y][b.x] = temp

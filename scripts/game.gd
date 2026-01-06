@@ -20,17 +20,8 @@ var moves_count := 0
 
 ## Load a level by its ID
 func _load_level_by_id(level_id: int) -> LevelData:
-	match level_id:
-		1:
-			return LevelData.create_level_1()
-		2:
-			return LevelData.create_level_2()
-		999:
-			return LevelData.create_level_endless()
-		_:
-			# Default to level 1 if unknown ID
-			print("Warning: Unknown level_id %d, defaulting to Level 1" % level_id)
-			return LevelData.create_level_1()
+	# Use the centralized factory function
+	return LevelData.create_level(level_id)
 
 func _ready() -> void:
 	# Load level from GameManager (if it exists as autoload)
@@ -42,6 +33,14 @@ func _ready() -> void:
 
 	# Load the appropriate level based on level_id
 	current_level = _load_level_by_id(level_id)
+	
+	# Validate level was loaded successfully
+	if current_level == null:
+		push_error("Failed to load level %d" % level_id)
+		return
+	if current_level.starting_grid.size() == 0:
+		push_error("Level %d has empty starting_grid" % level_id)
+		return
 
 	# Debug: Print starting grid
 	print("Starting grid:")

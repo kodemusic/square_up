@@ -26,7 +26,7 @@ signal score_awarded(points: int)
 @export var height := 8
 
 ## 2D array storing cell data: board[y][x] -> {color, height, state}
-var board: Array[Array] = []
+var board: Array = []
 
 func _ready() -> void:
 	_init_board(width, height)
@@ -35,7 +35,7 @@ func _ready() -> void:
 func _init_board(w: int, h: int) -> void:
 	board.clear()
 	for y in range(h):
-		var row: Array[Dictionary] = []
+		var row: Array = []
 		for x in range(w):
 			row.append(_make_cell())
 		board.append(row)
@@ -48,12 +48,67 @@ func _make_cell(color: int = COLOR_NONE, z: int = 0, state: int = STATE_NORMAL) 
 		"state": state,
 	}
 
+## Public debug function: Print current board state and check for matches
+## Can be called from console or other scripts: board.debug_board_state()
+func debug_board_state(label: String = "Current Board State") -> void:
+	print("\n=== %s ===" % label)
+	print("Board dimensions: %dx%d" % [width, height])
+	
+	# Print board grid
+	print("\nBoard layout (color IDs):")
+	for y in range(height):
+		var row_str := "  "
+		for x in range(width):
+			var cell: Dictionary = board[y][x]
+			var color: int = cell["color"]
+			var state: int = cell["state"]
+			
+			# Format cell display
+			if color == COLOR_NONE:
+				row_str += "[.] "
+			elif state == STATE_LOCKED:
+				row_str += "[%dL] " % color  # L = locked
+			elif state == STATE_CLEARING:
+				row_str += "[%dC] " % color  # C = clearing
+			else:
+				row_str += "[%d] " % color
+		print(row_str)
+	
+	# Check for matches
+	var matches: Array[Vector2i] = []
+	for y in range(height - 1):
+		for x in range(width - 1):
+			var c0: int = board[y][x]["color"]
+			if c0 == COLOR_NONE:
+				continue
+			if (board[y][x + 1]["color"] == c0 and
+				board[y + 1][x]["color"] == c0 and
+				board[y + 1][x + 1]["color"] == c0):
+				matches.append(Vector2i(x, y))
+	
+	# Print match status
+	if matches.size() == 0:
+		print("\n✅ No 2x2 matches detected")
+	else:
+		print("\n⚠️  %d match(es) detected:" % matches.size())
+		for match_pos in matches:
+			var color: int = board[match_pos.y][match_pos.x]["color"]
+			print("  - Match at (%d, %d) with color %d" % [match_pos.x, match_pos.y, color])
+	
+	print("=== END %s ===\n" % label)
+
 ## Get the cell data at grid position (x, y)
 func get_cell(x: int, y: int) -> Dictionary:
+	if y < 0 or y >= board.size() or x < 0 or (board.size() > 0 and x >= board[0].size()):
+		push_error("get_cell out of bounds: (%d, %d)" % [x, y])
+		return _make_cell()
 	return board[y][x]
 
 ## Set all properties of a cell at grid position (x, y)
 func set_cell(x: int, y: int, color: int, z: int, state: int) -> void:
+	if y < 0 or y >= board.size() or x < 0 or (board.size() > 0 and x >= board[0].size()):
+		push_error("set_cell out of bounds: (%d, %d)" % [x, y])
+		return
 	board[y][x]["color"] = color
 	board[y][x]["height"] = z
 	board[y][x]["state"] = state
@@ -353,6 +408,17 @@ func load_level(tile_scene: PackedScene, p_tile_container: Node2D, level: LevelD
 	height = level.height
 	_init_board(level.width, level.height)
 
+	# Validate starting_grid is properly sized
+	if level.starting_grid.size() == 0:
+		push_error("Level starting_grid is empty")
+		return
+	if level.starting_grid.size() != level.height:
+		push_error("Level starting_grid height mismatch: expected %d, got %d" % [level.height, level.starting_grid.size()])
+		return
+	if level.starting_grid[0].size() != level.width:
+		push_error("Level starting_grid width mismatch: expected %d, got %d" % [level.width, level.starting_grid[0].size()])
+		return
+
 	# Populate board data from level starting grid
 	for y in range(level.height):
 		for x in range(level.width):
@@ -396,6 +462,45 @@ func load_level(tile_scene: PackedScene, p_tile_container: Node2D, level: LevelD
 				# Connect tile to input router if provided
 				if input_router != null and input_router.has_method("connect_tile"):
 					input_router.connect_tile(tile)
+	
+	# Debug: Check for matches immediately after spawn
+	_debug_check_starting_matches()
+
+## Debug function to check if any 2x2 matches exist on the board after spawn
+func _debug_check_starting_matches() -> void:
+	print("\n=== DEBUG: Checking for starting matches ===")
+	var matches_found: Array[Vector2i] = []
+	
+	# Check all possible 2x2 positions
+	for y in range(height - 1):
+		for x in range(width - 1):
+			var c0: int = board[y][x]["color"]
+			
+			# Skip empty cells
+			if c0 == COLOR_NONE:
+				continue
+			
+			# Check if all four cells match
+			if (board[y][x + 1]["color"] == c0 and
+				board[y + 1][x]["color"] == c0 and
+				board[y + 1][x + 1]["color"] == c0):
+				matches_found.append(Vector2i(x, y))
+				print("  ⚠️  MATCH FOUND at position (%d, %d) - Color: %d" % [x, y, c0])
+	
+	if matches_found.size() == 0:
+		print("  ✅ No starting matches detected - puzzle is valid!")
+	else:
+		print("  ❌ ERROR: %d starting matches found - puzzle should not have matches at spawn!" % matches_found.size())
+		# Print the full board for debugging
+		print("\nBoard state:")
+		for y in range(height):
+			var row_str := "  "
+			for x in range(width):
+				var color: int = board[y][x]["color"]
+				row_str += str(color) + " "
+			print(row_str)
+	
+	print("=== END DEBUG ===\n")
 
 ## Spawn a SquareGlow effect at the center of a 2x2 matched square
 func _spawn_square_glow(top_left: Vector2i, square_height: int) -> void:

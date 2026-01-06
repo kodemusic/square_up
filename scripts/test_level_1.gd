@@ -135,16 +135,16 @@ func _ready() -> void:
 	print("\n=== Validation Complete ===")
 
 ## Test if a swap creates any 2x2 match
-func _test_swap_creates_match(grid: Array[Array], from: Vector2i, to: Vector2i) -> bool:
+func _test_swap_creates_match(grid: Array, from: Vector2i, to: Vector2i) -> bool:
 	var test_grid := LevelData._copy_grid(grid)
 	LevelData._swap_cells(test_grid, from, to)
 	return _find_matches(test_grid).size() > 0
 
 ## Find all 2x2 matches in a grid
-func _find_matches(grid: Array[Array]) -> Array[Vector2i]:
+func _find_matches(grid: Array) -> Array[Vector2i]:
 	var matches: Array[Vector2i] = []
 	var h := grid.size()
-	var w := grid[0].size()
+	var w: int = grid[0].size()
 
 	for y in range(h - 1):
 		for x in range(w - 1):
@@ -159,14 +159,14 @@ func _find_matches(grid: Array[Array]) -> Array[Vector2i]:
 	return matches
 
 ## Apply moves to a grid
-func _apply_moves(grid: Array[Array], moves: Array[Dictionary]) -> Array[Array]:
+func _apply_moves(grid: Array, moves: Array[Dictionary]) -> Array:
 	var result := LevelData._copy_grid(grid)
 	for move in moves:
 		LevelData._swap_cells(result, move["from"], move["to"])
 	return result
 
 ## Print grid with color names
-func _print_grid_colored(grid: Array[Array]) -> void:
+func _print_grid_colored(grid: Array) -> void:
 	for y in range(grid.size()):
 		var row_str := "  "
 		for x in range(grid[y].size()):

@@ -1,5 +1,7 @@
 # GameManager Setup Instructions
 
+> **Note**: For solver algorithm and safety verification, see [docs/SOLVER_SAFETY_VERIFICATION.md](docs/SOLVER_SAFETY_VERIFICATION.md)
+
 ## Step 1: Register GameManager as Autoload (Singleton)
 
 1. Open your project in Godot
