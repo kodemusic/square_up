@@ -6,6 +6,10 @@ extends Node
 ## Path to save file for persistent progress
 const SAVE_FILE_PATH := "user://square_up_save.json"
 
+## Mobile stretch scale multiplier
+const MOBILE_STRETCH_SCALE := 1.25
+const DESKTOP_STRETCH_SCALE := 1.0
+
 ## Current progress data
 var player_progress := {
 	"current_level": 1,           # Current level player is on
@@ -16,6 +20,9 @@ var player_progress := {
 }
 
 func _ready() -> void:
+	# Detect platform and adjust stretch scale
+	_configure_stretch_scale()
+	
 	# Load saved progress on startup
 	load_progress()
 
@@ -23,6 +30,26 @@ func _ready() -> void:
 	print("  Current Level: %d" % player_progress["current_level"])
 	print("  Highest Unlocked: %d" % player_progress["highest_unlocked"])
 	print("  Total Score: %d" % player_progress["total_score"])
+
+## Detect if running on mobile and adjust content scale
+func _configure_stretch_scale() -> void:
+	var platform := OS.get_name()
+	var is_mobile := platform in ["Android", "iOS"]
+	
+	# Also check screen size for small screens (phones vs tablets)
+	# Phones typically have shorter dimension < 600-800 logical pixels
+	var screen_size := DisplayServer.screen_get_size()
+	var min_dimension := mini(screen_size.x, screen_size.y)
+	var is_small_screen := min_dimension < 800
+	
+	if is_mobile and is_small_screen:
+		# Phone - use larger scale
+		get_tree().root.content_scale_factor = MOBILE_STRETCH_SCALE
+		print("Mobile phone detected - stretch scale: %.2f" % MOBILE_STRETCH_SCALE)
+	else:
+		# Desktop or tablet - use normal scale
+		get_tree().root.content_scale_factor = DESKTOP_STRETCH_SCALE
+		print("Desktop/tablet detected - stretch scale: %.2f" % DESKTOP_STRETCH_SCALE)
 
 ## Load the specified level
 ## level_id: ID of the level to load (1, 2, 3, etc., 999 for endless)

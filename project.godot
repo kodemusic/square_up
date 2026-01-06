@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="squareUp"
-run/main_scene="uid://dadp8w3janinu"
+run/main_scene="uid://ckgvrupmdd3er"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -24,9 +24,11 @@ GameManager="*res://scripts/main.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

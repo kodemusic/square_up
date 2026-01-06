@@ -1,5 +1,14 @@
-[gd_scene format=3 uid="uid://cwvxp8jyuuo8d"]
+[gd_scene load_steps=3 format=3 uid="uid://cwvxp8jyuuo8d"]
 
-[node name="SquareGlow" type="Control"]
-layout_mode = 3
-anchors_preset = 0
+[ext_resource type="Script" uid="uid://ckew1j2rpytc6" path="res://scripts/square_glow.gd" id="1_pexet"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_i20hh"]
+
+[node name="SquareGlow" type="Node2D"]
+script = ExtResource("1_pexet")
+
+[node name="outline" type="Line2D" parent="."]
+material = SubResource("CanvasItemMaterial_i20hh")
+closed = true
+width = 3.0
+antialiased = true

@@ -164,8 +164,8 @@ static func create_level_1() -> LevelData:
 	level.target_score = 20  # 2 squares × 10 points
 	level.squares_goal = 1  # Need to complete 1 square
 
-	# Generate a random 4x4 grid with 2 colors and no 2x2 matches
-	level.starting_grid = generate_grid_no_squares(4, 4, 2)
+	# Generate a validated random 4x4 grid with 2 colors
+	level.starting_grid = _generate_validated_grid(4, 4, 2, level.move_limit, 1)
 
 	# Tutorial mode: no locking, no clearing, no gravity, no refill
 	level.lock_on_match = false
@@ -183,16 +183,54 @@ static func create_level_2() -> LevelData:
 	level.level_name = "Three Colors"
 	level.width = 4
 	level.height = 4
-	level.move_limit = 0  # Unlimited moves
+	level.move_limit = 8  # 8 moves for more challenge
 	level.target_score = 20  # Need 2 matches (2 squares × 10 points each)
+	level.squares_goal = 2  # Need 2 squares
 
-	# Generate a random 4x4 grid with 3 colors and no 2x2 matches
-	level.starting_grid = generate_grid_no_squares(4, 4, 3)
-	level.lock_on_match = false
+	# Generate a validated random 4x4 grid with 3 colors
+	level.starting_grid = _generate_validated_grid(4, 4, 3, level.move_limit, 2)
+	
+	level.lock_on_match = true  # Lock matches this time
 	level.clear_locked_squares = false
 	level.enable_gravity = false
 	level.refill_from_top = false
 	return level
+
+## Generate a grid that is validated to be solvable with no trivial solutions
+## rows, cols: grid dimensions
+## num_colors: number of tile colors
+## max_moves: maximum moves allowed
+## min_solution_depth: minimum moves required for solution (prevents trivial puzzles)
+static func _generate_validated_grid(rows: int, cols: int, num_colors: int, max_moves: int, min_solution_depth: int = 2) -> Array[Array]:
+	var max_attempts := 50
+	
+	for attempt in range(max_attempts):
+		# Generate a random grid with no 2x2 matches
+		var grid := generate_grid_no_squares(rows, cols, num_colors)
+		
+		# Validate using solver
+		var validation := Solver.validate_level(grid, max_moves, min_solution_depth)
+		
+		if validation["valid"]:
+			print("Level generated on attempt %d (solution depth: %d, states explored: %d)" % [
+				attempt + 1, 
+				validation["shortest_solution"],
+				validation["states_explored"]
+			])
+			return grid
+		else:
+			if attempt % 10 == 9:
+				print("Attempt %d failed: %s" % [attempt + 1, validation["errors"]])
+	
+	# Fallback: return any solvable grid even if trivial
+	print("Warning: Could not generate optimal puzzle, using fallback")
+	for _fallback in range(20):
+		var grid := generate_grid_no_squares(rows, cols, num_colors)
+		if Solver.can_solve(grid, max_moves):
+			return grid
+	
+	# Ultimate fallback
+	return generate_grid_no_squares(rows, cols, num_colors)
 
 ## Endless Mode: Infinite gameplay with cascading matches
 ## Matches lock → clear → drop → refill → cascade

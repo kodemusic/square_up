@@ -8,6 +8,16 @@ const STATE_CLEARING := 2  # Being cleared/animated
 ## Special color value for empty cells
 const COLOR_NONE := -1
 
+## SquareGlow effect scene
+var square_glow_scene := preload("res://scenes/SquareGlow.tscn")
+
+## Reference to tile container (set by load_level)
+var tile_container: Node2D = null
+
+## Isometric tile dimensions (set by load_level)
+var tile_width: float = 128.0
+var tile_height: float = 64.0
+
 ## Emitted when tiles are matched and points are awarded
 signal score_awarded(points: int)
 
@@ -50,11 +60,11 @@ func set_cell(x: int, y: int, color: int, z: int, state: int) -> void:
 
 ## Convert grid coordinates to isometric screen position
 ## Diamond isometric projection: rotate grid 45° and compress Y axis
-func grid_to_iso(row: int, col: int, z: int, tile_width: float, tile_height: float, height_step: float) -> Vector2:
+func grid_to_iso(row: float, col: float, z: float, tw: float, th: float, height_step: float) -> Vector2:
 	# X position: difference of col and row determines horizontal placement
-	var x := (col - row) * (tile_width * 0.5)
+	var x := (col - row) * (tw * 0.5)
 	# Y position: sum of col and row determines depth, subtract height offset
-	var y := (col + row) * (tile_height * 0.5) - (z * height_step)
+	var y := (col + row) * (th * 0.5) - (z * height_step)
 	return Vector2(x, y)
 
 ## Attempt to swap two tiles, returns true if swap creates a match
@@ -98,8 +108,8 @@ func _swap_colors(a: Vector2i, b: Vector2i) -> void:
 
 ## Update tile visuals in the tile container after data changes
 ## Finds tiles by grid position and updates their color_id
-func update_tile_visuals(tile_container: Node2D) -> void:
-	for tile in tile_container.get_children():
+func update_tile_visuals(container: Node2D) -> void:
+	for tile in container.get_children():
 		if tile is Area2D:
 			var grid_pos: Vector2i = tile.grid_pos
 			var cell: Dictionary = board[grid_pos.y][grid_pos.x]
@@ -221,6 +231,10 @@ func award_points_for_matches(positions: Array[Vector2i], points_per_square: int
 		var square_height: int = board[top_left.y][top_left.x]["height"]
 		# Award points with height multiplier (height 0 = 1x, height 1 = 2x, etc.)
 		total_points += points_per_square * (square_height + 1)
+		
+		# Spawn glow effect at center of 2x2 square
+		_spawn_square_glow(top_left, square_height)
+		
 	if total_points > 0:
 		emit_signal("score_awarded", total_points)
 
@@ -322,9 +336,14 @@ func refill_empty_spaces(colors: Array[int]) -> Array[Vector2i]:
 ## tile_width, tile_height: Size of tile in pixels for isometric positioning
 ## height_step: Vertical offset per height level
 ## input_router: Optional InputRouter to connect tile signals
-func load_level(tile_scene: PackedScene, tile_container: Node2D, level: LevelData,
-				tile_width: float = 128.0, tile_height: float = 64.0, height_step: float = 8.0,
+func load_level(tile_scene: PackedScene, p_tile_container: Node2D, level: LevelData,
+				p_tile_width: float = 128.0, p_tile_height: float = 64.0, height_step: float = 8.0,
 				input_router: Node = null) -> void:
+	# Store references for glow spawning
+	tile_container = p_tile_container
+	tile_width = p_tile_width
+	tile_height = p_tile_height
+	
 	# Clear existing tiles
 	for child in tile_container.get_children():
 		child.queue_free()
@@ -377,3 +396,39 @@ func load_level(tile_scene: PackedScene, tile_container: Node2D, level: LevelDat
 				# Connect tile to input router if provided
 				if input_router != null and input_router.has_method("connect_tile"):
 					input_router.connect_tile(tile)
+
+## Spawn a SquareGlow effect at the center of a 2x2 matched square
+func _spawn_square_glow(top_left: Vector2i, square_height: int) -> void:
+	if tile_container == null:
+		return
+	
+	# Calculate center of 2x2 square in grid coordinates
+	# Center is at (top_left.x + 0.5, top_left.y + 0.5) but we need the iso center
+	# which is the average of all 4 tile positions
+	var center_row := top_left.y + 0.5
+	var center_col := top_left.x + 0.5
+	
+	# Convert to isometric position
+	var center_iso := grid_to_iso(center_row, center_col, square_height, tile_width, tile_height, 8.0)
+	
+	# Get color from one of the matched tiles
+	var color_id: int = board[top_left.y][top_left.x]["color"]
+	var glow_color := _get_color_for_id(color_id)
+	
+	# Spawn glow
+	var glow := square_glow_scene.instantiate()
+	glow.position = center_iso
+	glow.z_index = 100  # Render on top
+	tile_container.add_child(glow)
+	glow.play(glow_color)
+
+## Get a Color for a color_id (for glow effect)
+func _get_color_for_id(color_id: int) -> Color:
+	match color_id:
+		0: return Color.RED
+		1: return Color.GREEN
+		2: return Color.BLUE
+		3: return Color.YELLOW
+		4: return Color.PURPLE
+		5: return Color.ORANGE
+		_: return Color.WHITE
