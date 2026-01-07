@@ -4,15 +4,16 @@
 [ext_resource type="PackedScene" uid="uid://d2autq3odb8g" path="res://scenes/BoardRoot.tscn" id="1_ibkli"]
 [ext_resource type="PackedScene" uid="uid://dfd8esgememoj" path="res://scenes/HUD.tscn" id="2_qbsmt"]
 [ext_resource type="Script" uid="uid://c0ocuu6rdnurs" path="res://scripts/input_router.gd" id="3_input"]
-[ext_resource type="Script" path="res://scripts/layout_manager.gd" id="4_layout"]
-[ext_resource type="PackedScene" uid="uid://portrait_layout_001" path="res://scenes/PortraitLayout.tscn" id="5_portrait"]
-[ext_resource type="PackedScene" uid="uid://landscape_layout_001" path="res://scenes/LandscapeLayout.tscn" id="6_landscape"]
+[ext_resource type="Script" uid="uid://p2buo4juos55" path="res://scripts/layout_manager.gd" id="4_layout"]
+[ext_resource type="PackedScene" path="res://scenes/PortraitLayout.tscn" id="5_portrait"]
+[ext_resource type="PackedScene" path="res://scenes/LandscapeLayout.tscn" id="6_landscape"]
 
 [node name="Game" type="Node"]
 script = ExtResource("1_cpr0p")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(960, 540)
+zoom = Vector2(1.47, 1.47)
 
 [node name="LayoutManager" type="Node" parent="."]
 script = ExtResource("4_layout")

@@ -171,7 +171,7 @@ static func create_level_1() -> LevelData:
 	level.width = 4
 	level.height = 4
 	level.num_colors = 2
-	level.move_limit = 1
+	level.move_limit = 0 	# Unlimited
 	level.target_score = 10
 	level.squares_goal = 1
 
@@ -197,10 +197,10 @@ static func create_level_2() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 2
 	level.level_name = "Three Colors"
-	level.width = 6
-	level.height = 6
+	level.width = 5
+	level.height = 5
 	level.num_colors = 3
-	level.move_limit = 8
+	level.move_limit = 0 # Unlimited
 	level.target_score = 20
 	level.squares_goal = 2
 
@@ -582,10 +582,9 @@ static func create_level(id: int) -> LevelData:
 
 ## Internal: Generate a level (called by create_level and pre_generate)
 static func _generate_level_internal(id: int) -> LevelData:
-	# HANDCRAFTED LEVELS ALWAYS TAKE PRIORITY (when prefer_handcrafted = true)
-	# To add a new handcrafted level, create a function like create_level_3()
-	# and add it to the match statement below
-
+	# HANDCRAFTED LEVELS ONLY (when prefer_handcrafted = true)
+	# Uses factory functions from "LEVEL FACTORY FUNCTIONS" section
+	
 	if prefer_handcrafted:
 		match id:
 			1:
@@ -599,8 +598,12 @@ static func _generate_level_internal(id: int) -> LevelData:
 			#     return create_level_3()
 			# 4:
 			#     return create_level_4()
-
-	# FALLBACK: Rule-based generation for levels without handcrafted versions
+			_:
+				# No handcrafted level exists for this ID
+				push_error("Level %d does not have a handcrafted factory function" % id)
+				return create_level_1()  # Fallback to Level 1
+	
+	# PROCEDURAL GENERATION (only when prefer_handcrafted = false)
 	if id >= 3 and id <= 100:
 		var difficulty := _calculate_difficulty(id)
 		var rules := LevelRules.create_for_difficulty(difficulty)

@@ -45,21 +45,21 @@ func _ready() -> void:
 
 ## Detect orientation based on viewport aspect ratio and apply layout
 func _detect_and_apply_orientation() -> void:
-	var viewport_size := get_viewport_rect().size
-	var aspect_ratio := viewport_size.x / viewport_size.y
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var aspect_ratio: float = viewport_size.x / viewport_size.y
 
 	# Portrait if height > width (aspect ratio < 1.0)
-	var is_portrait := aspect_ratio < 1.0
+	var portrait_mode: bool = aspect_ratio < 1.0
 
 	# Only switch if orientation actually changed
-	if is_portrait != current_is_portrait:
-		current_is_portrait = is_portrait
-		_switch_layout(is_portrait)
-		orientation_changed.emit(is_portrait)
+	if portrait_mode != current_is_portrait:
+		current_is_portrait = portrait_mode
+		_switch_layout(portrait_mode)
+		orientation_changed.emit(portrait_mode)
 
 ## Switch between portrait and landscape layouts
-func _switch_layout(is_portrait: bool) -> void:
-	if is_portrait:
+func _switch_layout(portrait_mode: bool) -> void:
+	if portrait_mode:
 		portrait_layout.visible = true
 		landscape_layout.visible = false
 		print("[LayoutManager] Switched to PORTRAIT layout")

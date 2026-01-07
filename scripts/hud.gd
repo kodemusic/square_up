@@ -250,8 +250,19 @@ func _create_combo_label() -> void:
 	combo_label.name = "ComboLabel"
 	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	combo_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	combo_label.position = Vector2(get_viewport_rect().size.x / 2 - 100, get_viewport_rect().size.y / 2 - 100)
-	combo_label.size = Vector2(200, 100)
+	
+	# Use anchors instead of hardcoded position (Golden Rule principle)
+	combo_label.anchor_left = 0.5
+	combo_label.anchor_right = 0.5
+	combo_label.anchor_top = 0.5
+	combo_label.anchor_bottom = 0.5
+	combo_label.offset_left = -100
+	combo_label.offset_right = 100
+	combo_label.offset_top = -50
+	combo_label.offset_bottom = 50
+	combo_label.grow_horizontal = GROW_DIRECTION_BOTH
+	combo_label.grow_vertical = GROW_DIRECTION_BOTH
+	
 	combo_label.add_theme_font_size_override("font_size", 48)
 	combo_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.0))  # Gold color
 	combo_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))

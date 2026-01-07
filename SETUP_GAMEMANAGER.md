@@ -180,7 +180,54 @@ func _input(event):
 5. Add buttons to HUD for "Restart" and "Next Level"
 ---
 
-## Recent Changes (January 6, 2026)
+## Recent Changes (January 7, 2026)
+
+### Level Generation System Updates ✅
+
+**Handcrafted-Only Mode Enforced:**
+
+Modified level generation to strictly use handcrafted factory functions when `prefer_handcrafted = true`:
+
+**Files Modified:**
+- `scripts/level_data.gd`: 
+  - Changed `auto_generate = true` (was false) to enable on-demand generation
+  - Updated `_generate_level_internal()` to error if no handcrafted factory exists
+  - Added default case `_:` in match statement for missing level IDs
+
+**Behavior Changes:**
+```gdscript
+# When prefer_handcrafted = true (DEFAULT):
+LevelData.create_level(1)   # ✅ Uses create_level_1() factory
+LevelData.create_level(2)   # ✅ Uses create_level_2() factory  
+LevelData.create_level(999) # ✅ Uses create_level_endless() factory
+LevelData.create_level(3)   # ❌ ERROR: No factory function, falls back to Level 1
+
+# When prefer_handcrafted = false:
+LevelData.create_level(3)   # ✅ Uses procedural generation with rules
+```
+
+**Configuration Flags:**
+- `auto_generate = true`: Levels generate on-demand (no need to pre-cache)
+- `prefer_handcrafted = true`: Only uses factory functions, never procedural
+
+**Adding New Handcrafted Levels:**
+1. Create factory function in "LEVEL FACTORY FUNCTIONS" section:
+   ```gdscript
+   static func create_level_3() -> LevelData:
+       var level := LevelData.new()
+       level.level_id = 3
+       # ... configure level ...
+       return level
+   ```
+
+2. Add to match statement in `_generate_level_internal()`:
+   ```gdscript
+   match id:
+       1: return create_level_1()
+       2: return create_level_2()
+       3: return create_level_3()  # Add this
+       999: return create_level_endless()
+   ```
 
 ### Cascade System Implementation ✅
 
