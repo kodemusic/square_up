@@ -14,6 +14,9 @@ extends Node
 
 class_name LevelData
 
+# Dependencies
+const ColorBag = preload("res://scripts/color_bag.gd")
+
 # ========================================================================
 # CONSTANTS
 # ========================================================================
@@ -28,6 +31,7 @@ const FALLBACK_ATTEMPTS := 10
 # ========================================================================
 static var level_cache: Dictionary = {}  # level_id -> LevelData
 static var auto_generate: bool = true    # Auto-generate on create_level() call?
+static var prefer_handcrafted: bool = true  # Use handcrafted levels when available (default: true)
 
 # ========================================================================
 # INSTANCE PROPERTIES
@@ -96,21 +100,35 @@ func print_grid(grid: Array) -> void:
 
 ## Generate a random grid with no 2x2 matches
 ## Uses backtracking to ensure no color creates a square when placed
-static func generate_grid_no_squares(rows: int, cols: int, color_count: int) -> Array:
+static func generate_grid_no_squares(rows: int, cols: int, color_count: int, use_bag: bool = true) -> Array:
 	if rows <= 0 or cols <= 0 or color_count <= 0:
 		push_error("Invalid grid parameters: rows=%d, cols=%d, colors=%d" % [rows, cols, color_count])
 		return []
-	
+
+	# Create color bag for better distribution (bag multiplier = 2x for good variety)
+	var bag: ColorBag = null
+	if use_bag:
+		bag = ColorBag.create_default(color_count, 2)
+
 	var grid: Array = []
 	for r in range(rows):
 		var row: Array = []
 		for c in range(cols):
 			var tries := 0
-			var color_id := randi() % color_count
+			var color_id: int
+
+			# Draw from bag or use pure random
+			if bag:
+				color_id = bag.draw()
+			else:
+				color_id = randi() % color_count
 
 			# Keep trying random colors until we find one that doesn't create a square
 			while _creates_square(grid, row, r, c, color_id) and tries < 20:
-				color_id = randi() % color_count
+				if bag:
+					color_id = bag.draw()
+				else:
+					color_id = randi() % color_count
 				tries += 1
 
 			# Failsafe: if too constrained, find any non-square color
@@ -277,7 +295,9 @@ static func _get_level_1_grid() -> Array:
 			],
 			"moves": [{"from": Vector2i(2, 1), "to": Vector2i(3, 1)}]
 		},
-		# Puzzle 4: Swap brings 1 from (2,3) into (2,2) to complete bottom-right match
+		# Puzzle 4: Swap brings 1 from (1,3) into (2,3) to complete bottom-right match
+		# Goal has 2x2 of 1s at (2,2)-(3,2)-(2,3)-(3,3)
+		# Move swaps (2,3) with (1,3), so START has (2,3)=0 (from position 1,3) and (1,3)=1 (from position 2,3)
 		{
 			"goal": [
 				[0, 1, 0, 1],
@@ -285,7 +305,7 @@ static func _get_level_1_grid() -> Array:
 				[0, 1, 1, 1],
 				[1, 0, 1, 1]
 			],
-			"moves": [{"from": Vector2i(2, 2), "to": Vector2i(2, 3)}]
+			"moves": [{"from": Vector2i(2, 3), "to": Vector2i(1, 3)}]
 		},
 		# Puzzle 5: Swap brings 0 from (3,0) into (2,0) to complete top-right match
 		{
@@ -565,23 +585,34 @@ static func create_level(id: int) -> LevelData:
 
 ## Internal: Generate a level (called by create_level and pre_generate)
 static func _generate_level_internal(id: int) -> LevelData:
-	# Hardcoded levels (1, 2, 999)
-	match id:
-		1:
-			return create_level_1()
-		2:
-			return create_level_2()
-		999:
-			return create_level_endless()
-		_:
-			# Rule-based generation for levels 3+
-			if id >= 3 and id <= 100:
-				var difficulty := _calculate_difficulty(id)
-				var rules := LevelRules.create_for_difficulty(difficulty)
-				return create_from_rules(id, rules)
-			else:
-				push_warning("Unknown level ID %d, defaulting to Level 1" % id)
+	# HANDCRAFTED LEVELS ALWAYS TAKE PRIORITY (when prefer_handcrafted = true)
+	# To add a new handcrafted level, create a function like create_level_3()
+	# and add it to the match statement below
+
+	if prefer_handcrafted:
+		match id:
+			1:
 				return create_level_1()
+			2:
+				return create_level_2()
+			999:
+				return create_level_endless()
+			# Add more handcrafted levels here:
+			# 3:
+			#     return create_level_3()
+			# 4:
+			#     return create_level_4()
+
+	# FALLBACK: Rule-based generation for levels without handcrafted versions
+	if id >= 3 and id <= 100:
+		var difficulty := _calculate_difficulty(id)
+		var rules := LevelRules.create_for_difficulty(difficulty)
+		return create_from_rules(id, rules)
+	elif id == 999:
+		return create_level_endless()
+	else:
+		push_warning("Unknown level ID %d, defaulting to Level 1" % id)
+		return create_level_1()
 
 ## Calculate difficulty tier from level number
 static func _calculate_difficulty(level_num: int) -> int:
