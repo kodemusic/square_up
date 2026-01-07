@@ -1,20 +1,26 @@
-[gd_scene load_steps=5 format=3 uid="uid://dadp8w3janinu"]
+[gd_scene load_steps=8 format=3 uid="uid://dadp8w3janinu"]
 
 [ext_resource type="Script" uid="uid://bwiwj1key4ty8" path="res://scripts/game.gd" id="1_cpr0p"]
 [ext_resource type="PackedScene" uid="uid://d2autq3odb8g" path="res://scenes/BoardRoot.tscn" id="1_ibkli"]
 [ext_resource type="PackedScene" uid="uid://dfd8esgememoj" path="res://scenes/HUD.tscn" id="2_qbsmt"]
 [ext_resource type="Script" uid="uid://c0ocuu6rdnurs" path="res://scripts/input_router.gd" id="3_input"]
+[ext_resource type="Script" path="res://scripts/layout_manager.gd" id="4_layout"]
+[ext_resource type="PackedScene" uid="uid://portrait_layout_001" path="res://scenes/PortraitLayout.tscn" id="5_portrait"]
+[ext_resource type="PackedScene" uid="uid://landscape_layout_001" path="res://scenes/LandscapeLayout.tscn" id="6_landscape"]
 
 [node name="Game" type="Node"]
 script = ExtResource("1_cpr0p")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(640, 358)
-zoom = Vector2(1.125, 1.125)
+position = Vector2(960, 540)
 
-[node name="Camera2D2" type="Camera2D" parent="."]
-position = Vector2(640, 358)
-zoom = Vector2(1.125, 1.125)
+[node name="LayoutManager" type="Node" parent="."]
+script = ExtResource("4_layout")
+
+[node name="PortraitLayout" parent="LayoutManager" instance=ExtResource("5_portrait")]
+visible = false
+
+[node name="LandscapeLayout" parent="LayoutManager" instance=ExtResource("6_landscape")]
 
 [node name="BoardRoot" parent="." instance=ExtResource("1_ibkli")]
 
@@ -29,6 +35,8 @@ offset_bottom = 40.0
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="Hud" parent="UILayer" instance=ExtResource("2_qbsmt")]
+offset_top = -6.0
+offset_bottom = -6.0
 
 [node name="InputRouter" type="Node" parent="."]
 script = ExtResource("3_input")

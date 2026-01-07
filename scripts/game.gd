@@ -11,6 +11,7 @@ var tile_scene := preload("res://scenes/Tile.tscn")
 @onready var tile_container := $BoardRoot/TileContainer as Node2D
 @onready var input_router := $InputRouter as Node
 @onready var hud := $UILayer/Hud as Control
+@onready var layout_manager := $LayoutManager as Node
 
 ## Current level being played
 var current_level: LevelData
@@ -65,9 +66,12 @@ func _ready() -> void:
 	# Pass level configuration to input router
 	input_router.set_current_level(current_level)
 
-	# Center the board on screen (camera is at 640, 359)
-	# For a 4x4 grid, the center should be offset
-	tile_container.position = Vector2(640, 200)
+	# Position board relative to active layout's BoardAnchor (Golden Rule architecture)
+	# Camera is centered at (960, 540) for 1920x1080 viewport
+	_position_board_in_layout()
+
+	# Connect to orientation changes for runtime layout switching
+	layout_manager.orientation_changed.connect(_on_orientation_changed)
 
 	print("Level loaded: %s" % current_level.level_name)
 	print("Board size: %dx%d" % [current_level.width, current_level.height])
@@ -245,5 +249,35 @@ func _pregenerate_next_level() -> void:
 		print("Level %d pre-generated successfully" % next_id)
 	else:
 		push_warning("Failed to pre-generate level %d" % next_id)
-	
+
 	is_pregenerating = false
+
+## ========================================================================
+##  GOLDEN RULE LAYOUT SYSTEM
+## ========================================================================
+
+## Position the board container relative to the active layout's BoardAnchor
+## This implements layout-relative positioning (Golden Rule principle #5)
+func _position_board_in_layout() -> void:
+	# Wait one frame to ensure layout nodes are ready
+	await get_tree().process_frame
+
+	var board_anchor: Control = layout_manager.get_active_board_anchor()
+
+	# Get BoardAnchor's global position and size
+	var anchor_global_pos: Vector2 = board_anchor.global_position
+	var anchor_size: Vector2 = board_anchor.size
+
+	# Calculate center of BoardAnchor
+	var anchor_center: Vector2 = anchor_global_pos + (anchor_size / 2.0)
+
+	# Position tile_container at anchor center
+	tile_container.global_position = anchor_center
+
+	print("[Game] Board positioned at: %v (layout-relative)" % tile_container.global_position)
+
+## Handle orientation changes (portrait <-> landscape)
+## Re-positions board when layout switches at runtime
+func _on_orientation_changed(is_portrait: bool) -> void:
+	print("[Game] Orientation changed: %s" % ("Portrait" if is_portrait else "Landscape"))
+	_position_board_in_layout()

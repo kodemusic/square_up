@@ -14,7 +14,7 @@ color_id = 1
 position = Vector2(0.5, 8.5)
 
 [node name="visual" type="Node2D" parent="."]
-position = Vector2(0.5, 8.5)
+position = Vector2(0, 24)
 scale = Vector2(0.135, 0.135)
 
 [node name="Highlight" type="Sprite2D" parent="visual"]
@@ -22,22 +22,22 @@ scale = Vector2(0.135, 0.135)
 [node name="LockIcon" type="Sprite2D" parent="visual"]
 
 [node name="Sprite2D" type="Sprite2D" parent="visual"]
-position = Vector2(-2, 94)
 texture = ExtResource("2_r3gf4")
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
-position = Vector2(0, 32)
+position = Vector2(0, 35)
 polygon = PackedVector2Array(-1, -27, 32, -19, 1, -8, -32, -16)
 
 [node name="StackedRoot" type="Node2D" parent="."]
 visible = false
+position = Vector2(0, 2)
 
 [node name="Stack_slice1" type="Sprite2D" parent="StackedRoot"]
-position = Vector2(0, 62)
-scale = Vector2(0.25, 0.25)
+position = Vector2(0, 39)
+scale = Vector2(0.135, 0.135)
 texture = ExtResource("3_r3gf4")
 
 [node name="Stack_slice2" type="Sprite2D" parent="StackedRoot"]
-position = Vector2(0, 85)
-scale = Vector2(0.25, 0.25)
+position = Vector2(0.15, 51)
+scale = Vector2(0.135, 0.135)
 texture = ExtResource("3_r3gf4")

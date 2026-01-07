@@ -14,9 +14,6 @@ extends Node
 
 class_name LevelData
 
-# Dependencies
-const ColorBag = preload("res://scripts/color_bag.gd")
-
 # ========================================================================
 # CONSTANTS
 # ========================================================================
