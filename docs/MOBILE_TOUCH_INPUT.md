@@ -151,7 +151,7 @@ func _on_tile_tapped(tile: Area2D) -> void:
 ## Touch-Friendly Features
 
 ### Large Touch Targets
-- **Tile Size**: 128x64 pixels (isometric)
+- **Tile Size**: 64x32 pixels (isometric, with 0.135 visual scale)
 - **Area2D Coverage**: Full tile area is clickable
 - **No Small Buttons**: All interactions are tile-based
 
@@ -255,7 +255,7 @@ func _on_tile_tapped(tile: Area2D) -> void:
 **Status**: ✅ ADDRESSED
 
 **Solution**:
-- Tiles are 128x64px (large enough)
+- Tiles are 64x32px with 0.135 visual scale
 - Dynamic scale on phones (1.25x)
 - Full tile area is tappable
 

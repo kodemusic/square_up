@@ -1,13 +1,37 @@
 extends Node
 
-## Level definition for puzzle levels
-## Supports reverse-solving: define goal state + solution, generate start state
+## ========================================================================
+##  LEVEL DATA - Puzzle Level Definition & Generation System
+## ========================================================================
+## Manages level creation using reverse-solve technique to guarantee
+## solvable puzzles. Supports caching, procedural generation, and
+## template-based level design.
+##
+## Usage:
+##   var level = LevelData.create_level(1)  # Get Level 1
+##   LevelData.pre_generate_levels(1, 10)   # Pre-cache levels 1-10
+## ========================================================================
+
 class_name LevelData
 
-## STATIC: Level cache and generation control
+# ========================================================================
+# CONSTANTS
+# ========================================================================
+const DEFAULT_WIDTH := 5
+const DEFAULT_HEIGHT := 5
+const DEFAULT_COLORS := 3
+const MAX_GENERATION_ATTEMPTS := 15
+const FALLBACK_ATTEMPTS := 10
+
+# ========================================================================
+# STATIC PROPERTIES - Cache & Generation Control
+# ========================================================================
 static var level_cache: Dictionary = {}  # level_id -> LevelData
 static var auto_generate: bool = true    # Auto-generate on create_level() call?
-static var pre_generate_count: int = 0   # How many levels to pre-generate
+
+# ========================================================================
+# INSTANCE PROPERTIES
+# ========================================================================
 
 ## Level metadata
 var level_id: int = 0
@@ -17,8 +41,9 @@ var target_score: int = 0
 var squares_goal: int = 0  # Number of 2x2 squares needed to win
 
 ## Board configuration
-var width: int = 5  # DEFAULT: 5x5 board
-var height: int = 5  # DEFAULT: 5x5 board
+var width: int = DEFAULT_WIDTH
+var height: int = DEFAULT_HEIGHT
+var num_colors: int = DEFAULT_COLORS
 var starting_grid: Array = []  # [y][x] -> color_id (2D array)
 
 ## Solution data (optional, for reverse-solving)
@@ -30,37 +55,17 @@ var clear_locked_squares: bool = false  # Remove locked squares from board?
 var enable_gravity: bool = false     # Tiles drop down into gaps?
 var refill_from_top: bool = false    # Spawn new tiles at top?
 
-## Create a simple level from a goal state by reverse-solving
-## goal_grid: 2D array of color IDs representing the solved state
-## moves: Array of swap dictionaries in forward order: [{from: Vector2i, to: Vector2i}]
-static func create_reverse_solved(goal_grid: Array, moves: Array[Dictionary]) -> LevelData:
-	var level := LevelData.new()
-	
-	# Validate goal_grid is not empty
-	if goal_grid.size() == 0 or goal_grid[0].size() == 0:
-		push_error("Cannot create level from empty goal_grid")
-		return level
-	
-	level.width = goal_grid[0].size()
-	level.height = goal_grid.size()
-	level.solution_moves = moves.duplicate()
 
-	# Copy goal state to working grid
-	var working_grid: Array = _copy_grid(goal_grid)
+# ========================================================================
+# GRID HELPER FUNCTIONS - Utility functions for grid manipulation
+# ========================================================================
 
-	# Apply moves in reverse order to get starting state
-	for i in range(moves.size() - 1, -1, -1):
-		var move: Dictionary = moves[i]
-		var from: Vector2i = move["from"]
-		var to: Vector2i = move["to"]
-		# Swap is its own inverse
-		_swap_cells(working_grid, from, to)
-
-	level.starting_grid = working_grid
-	return level
-
-## Helper: Deep copy a 2D grid
+## Deep copy a 2D grid array
 static func _copy_grid(grid: Array) -> Array:
+	if grid.size() == 0:
+		push_warning("Attempting to copy empty grid")
+		return []
+	
 	var copy: Array = []
 	for y in range(grid.size()):
 		var row: Array = []
@@ -69,120 +74,102 @@ static func _copy_grid(grid: Array) -> Array:
 		copy.append(row)
 	return copy
 
-## Helper: Swap two cells in a grid
+## Swap two cells in a grid (modifies in place)
 static func _swap_cells(grid: Array, a: Vector2i, b: Vector2i) -> void:
+	if grid.size() == 0 or a.y >= grid.size() or b.y >= grid.size():
+		push_error("Invalid grid or position for swap")
+		return
+	
 	var temp: int = grid[a.y][a.x]
 	grid[a.y][a.x] = grid[b.y][b.x]
 	grid[b.y][b.x] = temp
 
-## Generate a random grid with no 2x2 matches
-## Uses backtracking to ensure no color creates a square when placed
-static func generate_grid_no_squares(rows: int, cols: int, num_colors: int) -> Array:
-	var grid: Array = []
-	for r in range(rows):
-		var row: Array = []
-		for c in range(cols):
-			var tries := 0
-			var color_id := randi() % num_colors
-
-			# Keep trying random colors until we find one that doesn't create a square
-			while _creates_square(grid, row, r, c, color_id) and tries < 20:
-				color_id = randi() % num_colors
-				tries += 1
-
-			# Failsafe: if too constrained, find any non-square color
-			if tries >= 20:
-				color_id = _pick_non_square_color(grid, row, r, c, num_colors)
-
-			row.append(color_id)
-		grid.append(row)
-	return grid
-
-## Check if placing a color at position (r, c) would create a 2x2 square
-## Only checks the top-left square where (r, c) would be bottom-right corner
-## grid: completed rows, current_row: row being built, r/c: position
-static func _creates_square(grid: Array, current_row: Array, r: int, c: int, color_id: int) -> bool:
-	# Can't form a square if we're in the first row or column
-	if r == 0 or c == 0:
-		return false
-
-	# Need to check the previous row (which is in grid) and current row
-	# The square pattern is:
-	#   [r-1][c-1]  [r-1][c]   <- previous row (in grid)
-	#   [r][c-1]    [r][c]     <- current row (being built)
-
-	var top_left: int = grid[r - 1][c - 1]
-	var top_right: int = grid[r - 1][c]
-	var bottom_left: int = current_row[c - 1]
-
-	return (top_left == color_id and top_right == color_id and bottom_left == color_id)
-
-## Find a color that doesn't create a square at position (r, c)
-## Returns the first valid color found, or 0 as fallback
-static func _pick_non_square_color(grid: Array, current_row: Array, r: int, c: int, num_colors: int) -> int:
-	for color_id in range(num_colors):
-		if not _creates_square(grid, current_row, r, c, color_id):
-			return color_id
-	return 0  # Fallback (should be rare if num_colors >= 3)
-
-## Print the grid for debugging/visualization
+## Print grid for debugging
 func print_grid(grid: Array) -> void:
 	print("Grid %dx%d:" % [width, height])
 	for y in range(grid.size()):
 		var row_str := ""
 		for x in range(grid[y].size()):
 			var color_id: int = grid[y][x]
-			if color_id < 0:
-				row_str += ". "
-			else:
-				row_str += str(color_id) + " "
+			row_str += ". " if color_id < 0 else str(color_id) + " "
 		print(row_str)
 
-## Example: Create a simple 2-move puzzle
-static func create_example_level() -> LevelData:
-	# Define goal state: 2x2 match of color 0 in top-left
-	var goal_grid: Array = [
-		[0, 0, 1, 2],  # Row 0: Red, Red, Blue, Green
-		[0, 0, 2, 1],  # Row 1: Red, Red, Green, Blue
-		[1, 2, 1, 2],  # Row 2: Blue, Green, Blue, Green
-		[2, 1, 2, 1],  # Row 3: Green, Blue, Green, Blue
-	]
+## Generate a random grid with no 2x2 matches
+## Uses backtracking to ensure no color creates a square when placed
+static func generate_grid_no_squares(rows: int, cols: int, color_count: int) -> Array:
+	if rows <= 0 or cols <= 0 or color_count <= 0:
+		push_error("Invalid grid parameters: rows=%d, cols=%d, colors=%d" % [rows, cols, color_count])
+		return []
+	
+	var grid: Array = []
+	for r in range(rows):
+		var row: Array = []
+		for c in range(cols):
+			var tries := 0
+			var color_id := randi() % color_count
 
-	# Define solution moves (forward order)
-	var solution: Array[Dictionary] = [
-		{"from": Vector2i(0, 0), "to": Vector2i(1, 0)},  # Move 1: swap top-left horizontally
-		{"from": Vector2i(0, 1), "to": Vector2i(0, 0)},  # Move 2: swap vertically to complete match
-	]
+			# Keep trying random colors until we find one that doesn't create a square
+			while _creates_square(grid, row, r, c, color_id) and tries < 20:
+				color_id = randi() % color_count
+				tries += 1
 
-	var level := create_reverse_solved(goal_grid, solution)
-	level.level_id = 1
-	level.level_name = "Tutorial"
-	level.move_limit = 2
-	level.target_score = 10
+			# Failsafe: if too constrained, find any non-square color
+			if tries >= 20:
+				color_id = _pick_non_square_color(grid, row, r, c, color_count)
 
-	return level
+			row.append(color_id)
+		grid.append(row)
+	return grid
 
-## Level 1: First teaching level - 4x4 with 2 colors
-## Uses REVERSE-SOLVE puzzle pool - guaranteed solvable in 1 move
-## Tutorial level: no locking, just learn matching mechanics
+## Check if placing a color at position would create a 2x2 square
+static func _creates_square(grid: Array, current_row: Array, r: int, c: int, color_id: int) -> bool:
+	# Can't form a square if we're in the first row or column
+	if r == 0 or c == 0:
+		return false
+
+	# Check if this would complete a 2x2 square:
+	#   [r-1][c-1]  [r-1][c]   <- previous row (in grid)
+	#   [r][c-1]    [r][c]     <- current row (being built)
+	var top_left: int = grid[r - 1][c - 1]
+	var top_right: int = grid[r - 1][c]
+	var bottom_left: int = current_row[c - 1]
+
+	return (top_left == color_id and top_right == color_id and bottom_left == color_id)
+
+## Find a color that doesn't create a square at position
+static func _pick_non_square_color(grid: Array, current_row: Array, r: int, c: int, color_count: int) -> int:
+	for color_id in range(color_count):
+		if not _creates_square(grid, current_row, r, c, color_id):
+			return color_id
+	return 0  # Fallback (should be rare if color_count >= 3)
+
+
+# ========================================================================
+# LEVEL FACTORY FUNCTIONS - Create specific level instances
+# ========================================================================
+
+## Level 1: Tutorial - 1-move puzzle with 2 colors
 static func create_level_1() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 1
 	level.level_name = "First Match"
 	level.width = 4
 	level.height = 4
-	level.move_limit = 1  # Tutorial: exactly 1 move to solve
-	level.target_score = 10  # 1 square × 10 points
-	level.squares_goal = 1  # Need to complete 1 square
+	level.num_colors = 2
+	level.move_limit = 1
+	level.target_score = 10
+	level.squares_goal = 1
 
-	# Use REVERSE-SOLVE: puzzle is guaranteed solvable
+	# Generate using reverse-solve (guaranteed solvable)
 	level.starting_grid = _get_level_1_grid()
 	
-	# Verify solvability (debug)
-	var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
-	print("[Level 1] Generated puzzle - solvable: %s" % str(can_solve))
+	# Verify solvability in debug
+	if OS.is_debug_build():
+		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
+		print("[Level 1] Generated puzzle - solvable: %s" % str(can_solve))
 
-	# Tutorial mode: no locking, no clearing, no gravity, no refill
+	# Tutorial mode: no cascade mechanics
+	# Player learns basic matching without complications
 	level.lock_on_match = false
 	level.clear_locked_squares = false
 	level.enable_gravity = false
@@ -190,40 +177,69 @@ static func create_level_1() -> LevelData:
 
 	return level
 
-## Level 2: More complex puzzle with 3 colors
-## Uses REVERSE-SOLVE puzzle pool - guaranteed solvable in 2-4 moves
+## Level 2: Intermediate - Multi-move puzzle with 3 colors
 static func create_level_2() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 2
 	level.level_name = "Three Colors"
-	level.width = 5
-	level.height = 5
-	level.move_limit = 8  # 8 moves for more challenge
-	level.target_score = 20  # Need 2 matches (2 squares × 10 points each)
-	level.squares_goal = 2  # Need 2 squares
+	level.width = 6
+	level.height = 6
+	level.num_colors = 3
+	level.move_limit = 8
+	level.target_score = 20
+	level.squares_goal = 2
 
-	# Use REVERSE-SOLVE: puzzle is guaranteed solvable
+	# Generate using hybrid approach
 	level.starting_grid = _get_level_2_grid()
 	
-	# Verify solvability (debug)
-	var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
-	print("[Level 2] Generated puzzle - solvable: %s" % str(can_solve))
+	# Verify solvability in debug
+	if OS.is_debug_build():
+		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
+		print("[Level 2] Generated puzzle - solvable: %s" % str(can_solve))
 
-	level.lock_on_match = true  # Lock matches this time
-	level.clear_locked_squares = false
-	level.enable_gravity = false
-	level.refill_from_top = false
+	# Introduce full cascade mechanics: clear → gravity → refill → combo chains
+	# Player experiences the core satisfying gameplay loop
+	level.lock_on_match = true
+	level.clear_locked_squares = true
+	level.enable_gravity = true
+	level.refill_from_top = true
+	
 	return level
 
-## REVERSE-SOLVE APPROACH: Generate puzzles guaranteed to be solvable
-## Every puzzle is created by:
-## 1. Starting with a goal state that has a 2x2 match
-## 2. Defining exact solution moves
-## 3. Applying those moves in reverse to get the starting state
-## This GUARANTEES the puzzle is solvable by playing the moves forward
+## Endless Mode: Infinite gameplay with cascading mechanics
+static func create_level_endless() -> LevelData:
+	var level := LevelData.new()
+	level.level_id = 999
+	level.level_name = "Endless Mode"
+	level.width = 5
+	level.height = 5
+	level.num_colors = 3
+	level.move_limit = 0  # Unlimited
+	level.target_score = 0  # No target
+	level.squares_goal = 999999  # Infinite
 
-## Level 1: Generate a 1-move solvable puzzle using reverse-solve
-## Returns a starting grid that can be solved in exactly 1 move
+	# Generate validated grid
+	level.starting_grid = _generate_validated_grid(4, 4, 3, 10, 1)
+
+	# Full cascade mode
+	level.lock_on_match = true
+	level.clear_locked_squares = true
+	level.enable_gravity = true
+	level.refill_from_top = true
+
+	return level
+
+
+# ========================================================================
+# PUZZLE POOL DEFINITIONS - Reverse-solve templates
+# ========================================================================
+## These functions return starting grids generated from goal states
+## Puzzles are GUARANTEED solvable because they're created by:
+## 1. Define a goal state with a 2x2 match
+## 2. Define the solution moves
+## 3. Apply moves in REVERSE to generate the starting state
+
+## Get Level 1 puzzle (1-move solvable, 2 colors)
 static func _get_level_1_grid() -> Array:
 	# Pool of goal states + solutions for level 1 (1-move puzzles)
 	# CRITICAL: The solution move must swap a tile INTO the 2x2 match from OUTSIDE
@@ -284,8 +300,10 @@ static func _get_level_1_grid() -> Array:
 	]
 	
 	# Pick random puzzle definition
-	var def: Dictionary = puzzle_defs[randi() % puzzle_defs.size()]
-	
+	var puzzle_index := randi() % puzzle_defs.size()
+	var def: Dictionary = puzzle_defs[puzzle_index]
+	print("[Level 1 Generation] Selected puzzle %d/%d" % [puzzle_index + 1, puzzle_defs.size()])
+
 	# Apply reverse-solve: start from goal and undo the moves
 	var working_grid: Array = _copy_grid(def["goal"])
 	var moves: Array = def["moves"]
@@ -295,15 +313,17 @@ static func _get_level_1_grid() -> Array:
 		var move: Dictionary = moves[i]
 		var from: Vector2i = move["from"]
 		var to: Vector2i = move["to"]
+		print("[Level 1 Generation] Reversing move: swap (%d,%d) <-> (%d,%d)" % [from.x, from.y, to.x, to.y])
 		_swap_cells(working_grid, from, to)  # Swap is self-inverse
-	
+
+	print("[Level 1 Generation] Starting grid after reverse:")
+	for row in working_grid:
+		print("  ", row)
+
 	return working_grid
 
-## Level 2: Generate a validated solvable puzzle
-## HYBRID APPROACH:
-## 1. Use hand-crafted goal states + solution moves (curated difficulty)
-## 2. Generate starting grid using Solver.generate_validated_puzzle (adds noise)
-## 3. Fallback to pure procedural if validation fails
+## Get Level 2 puzzle (2-4 moves solvable, 3 colors, 5x5 board)
+## Uses hybrid approach: templates + validation
 static func _get_level_2_grid() -> Array:
 	# Hand-crafted puzzle templates (goal + solution spine) - 5x5 grids
 	var templates: Array = [
@@ -375,47 +395,49 @@ static func _get_level_2_grid() -> Array:
 	print("[Level 2] Hybrid failed, using PROCEDURAL generation")
 	return _generate_validated_grid(5, 5, 3, 10, 2)
 
-## Generate a grid that is validated to be solvable with no trivial solutions
-## rows, cols: grid dimensions
-## num_colors: number of tile colors
-## max_moves: maximum moves allowed
-## min_solution_depth: minimum moves required for solution (prevents trivial puzzles)
-## NOTE: This is now only used as fallback for procedural generation (endless mode, etc.)
-static func _generate_validated_grid(rows: int, cols: int, num_colors: int, max_moves: int, min_solution_depth: int = 2) -> Array:
-	var max_attempts := 15  # REDUCED from 50 to prevent stuttering
 
-	for attempt in range(max_attempts):
+# ========================================================================
+# PROCEDURAL GENERATION - Validated random grid generation
+# ========================================================================
+
+## Generate a validated solvable grid
+## Used as fallback for procedural generation
+static func _generate_validated_grid(rows: int, cols: int, color_count: int, max_moves: int, min_solution_depth: int = 2) -> Array:
+	for attempt in range(MAX_GENERATION_ATTEMPTS):
 		# Generate a random grid with no 2x2 matches
-		var grid := generate_grid_no_squares(rows, cols, num_colors)
+		var grid := generate_grid_no_squares(rows, cols, color_count)
 
-		# Validate using solver (with state limit to prevent hangs)
+		# Validate using solver
 		var validation := Solver.validate_level(grid, max_moves, min_solution_depth)
 
 		if validation["valid"]:
-			print("Level generated on attempt %d (solution depth: %d, states explored: %d)" % [
-				attempt + 1,
-				validation["shortest_solution"],
-				validation["states_explored"]
-			])
+			if OS.is_debug_build():
+				print("Level generated on attempt %d (solution: %d moves, explored: %d states)" % [
+					attempt + 1,
+					validation["shortest_solution"],
+					validation["states_explored"]
+				])
 			return grid
-		else:
-			if attempt % 5 == 4:  # Reduced logging frequency
-				print("Attempt %d failed: %s" % [attempt + 1, validation["errors"]])
+		elif OS.is_debug_build() and attempt % 5 == 4:
+			print("Attempt %d failed: %s" % [attempt + 1, validation["errors"]])
 
-	# Fallback: return any solvable grid even if trivial (FASTER)
+	# Fallback: return any solvable grid
 	print("Warning: Could not generate optimal puzzle, using fast fallback")
-	for _fallback in range(10):  # REDUCED from 20
-		var grid := generate_grid_no_squares(rows, cols, num_colors)
-		# Quick check with lower move limit
+	for _fallback in range(FALLBACK_ATTEMPTS):
+		var grid := generate_grid_no_squares(rows, cols, color_count)
 		if Solver.can_solve(grid, mini(max_moves, 5)):
 			return grid
 
-	# Ultimate fallback - just return a valid grid
-	print("Warning: Using unvalidated grid")
-	return generate_grid_no_squares(rows, cols, num_colors)
+	# Ultimate fallback
+	push_warning("Using unvalidated grid")
+	return generate_grid_no_squares(rows, cols, color_count)
 
-## Create a level from difficulty rules
-## This is the NEW recommended way to generate levels
+
+# ========================================================================
+# RULE-BASED GENERATION - Create levels from difficulty rules
+# ========================================================================
+
+## Create a level from difficulty rules (for levels 3+)
 static func create_from_rules(lvl_id: int, rules: LevelRules) -> LevelData:
 	var level := LevelData.new()
 	level.level_id = lvl_id
@@ -477,35 +499,41 @@ static func create_from_rules(lvl_id: int, rules: LevelRules) -> LevelData:
 		)
 
 	# Debug: verify solvability
-	var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
-	print("[Level %d] Generated - solvable: %s" % [lvl_id, str(can_solve)])
+	if OS.is_debug_build():
+		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
+		print("[Level %d] Generated - solvable: %s" % [lvl_id, str(can_solve)])
 
 	return level
 
-## Configure generation behavior
-## Call this BEFORE creating levels to control caching and auto-generation
+# ========================================================================
+# CACHE & GENERATION SYSTEM - Level caching and batch generation
+# ========================================================================
+
+## Configure generation behavior (call before creating levels)
 static func configure_generation(enable_auto_gen: bool = true, enable_cache: bool = true) -> void:
 	auto_generate = enable_auto_gen
 	if not enable_cache:
 		clear_cache()
 
-## Pre-generate levels in bulk (e.g., at startup or in background)
-## This prevents stuttering during gameplay
+## Pre-generate levels in bulk (prevents gameplay stuttering)
 static func pre_generate_levels(start_id: int, end_id: int) -> void:
-	print("Pre-generating levels %d to %d..." % [start_id, end_id])
+	if OS.is_debug_build():
+		print("Pre-generating levels %d to %d..." % [start_id, end_id])
 	var start_time := Time.get_ticks_msec()
 
 	for i in range(start_id, end_id + 1):
 		if not level_cache.has(i):
 			level_cache[i] = _generate_level_internal(i)
 
-	var elapsed := Time.get_ticks_msec() - start_time
-	print("Pre-generated %d levels in %d ms" % [end_id - start_id + 1, elapsed])
+	if OS.is_debug_build():
+		var elapsed := Time.get_ticks_msec() - start_time
+		print("Pre-generated %d levels in %d ms" % [end_id - start_id + 1, elapsed])
 
 ## Clear the level cache
 static func clear_cache() -> void:
 	level_cache.clear()
-	print("Level cache cleared")
+	if OS.is_debug_build():
+		print("Level cache cleared")
 
 ## Check if a level is cached
 static func is_cached(id: int) -> bool:
@@ -515,8 +543,7 @@ static func is_cached(id: int) -> bool:
 static func get_cache_size() -> int:
 	return level_cache.size()
 
-## Generic factory function to create any level by ID
-## This is the main entry point for level creation
+## Main entry point: Create any level by ID
 ## Uses cache and respects auto_generate setting
 static func create_level(id: int) -> LevelData:
 	# Check cache first
@@ -536,9 +563,9 @@ static func create_level(id: int) -> LevelData:
 	level_cache[id] = level
 	return level
 
-## Internal generation function (called by create_level and pre_generate)
+## Internal: Generate a level (called by create_level and pre_generate)
 static func _generate_level_internal(id: int) -> LevelData:
-	# HARDCODED levels override rule-based generation (for testing)
+	# Hardcoded levels (1, 2, 999)
 	match id:
 		1:
 			return create_level_1()
@@ -547,7 +574,7 @@ static func _generate_level_internal(id: int) -> LevelData:
 		999:
 			return create_level_endless()
 		_:
-			# Use rule-based generation for other levels
+			# Rule-based generation for levels 3+
 			if id >= 3 and id <= 100:
 				var difficulty := _calculate_difficulty(id)
 				var rules := LevelRules.create_for_difficulty(difficulty)
@@ -557,38 +584,9 @@ static func _generate_level_internal(id: int) -> LevelData:
 				return create_level_1()
 
 ## Calculate difficulty tier from level number
-## Levels 1-10: difficulties 1-5, then repeat with variations
 static func _calculate_difficulty(level_num: int) -> int:
-	# Simple progression: every 2 levels increases difficulty
-	# Levels 1-2: difficulty 1
-	# Levels 3-4: difficulty 2
-	# Levels 5-6: difficulty 3
-	# Levels 7-8: difficulty 4
-	# Levels 9-10: difficulty 5
-	# Then repeats at difficulty 5
+	# Progression: every 2 levels increases difficulty
+	# Levels 1-2: difficulty 1, 3-4: difficulty 2, etc.
+	# Max difficulty: 5
 	var tier := floori((level_num - 1) / 2.0) + 1
 	return mini(tier, 5)
-
-## Endless Mode: Infinite gameplay with cascading matches
-## Matches lock → clear → drop → refill → cascade
-static func create_level_endless() -> LevelData:
-	var level := LevelData.new()
-	level.level_id = 999
-	level.level_name = "Endless Mode"
-	level.width = 4
-	level.height = 4
-	level.move_limit = 0  # Unlimited moves
-	level.target_score = 0  # No target, play forever
-	level.squares_goal = 999999  # Effectively infinite
-
-	# Generate a VALIDATED grid - guaranteed solvable within 10 moves
-	# Uses solver to verify before returning
-	level.starting_grid = _generate_validated_grid(4, 4, 3, 10, 1)
-
-	# Full cascade mode: lock → clear → gravity → refill → cascade
-	level.lock_on_match = true
-	level.clear_locked_squares = true
-	level.enable_gravity = true
-	level.refill_from_top = true
-
-	return level

@@ -1,8 +1,12 @@
 extends Node
 
 ## Test the lightweight solver with various board states
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Solver Tests ===\n")
 
 	test_already_solved()
@@ -96,7 +100,7 @@ func test_unsolvable() -> void:
 ## Test 5: Validate the example level's solution
 func test_validate_level_solution() -> void:
 	print("Test 5: Validate level solution")
-	var level := LevelData.create_example_level()
+	var level: LevelData = LevelData.create_level(1)
 
 	var is_valid := Solver.validate_solution(level.starting_grid, level.solution_moves)
 	print("  Level solution is valid: %s (expected: true)" % is_valid)

@@ -2,12 +2,16 @@ extends Node
 
 ## Simple test to demonstrate reverse-solving workflow
 ## Run this scene to see how a level is generated from a goal state
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Reverse-Solving Workflow Demo ===\n")
 
-	# Create the example level
-	var level: LevelData = LevelData.create_example_level()
+	# Create Level 1 to demonstrate reverse-solving
+	var level: LevelData = LevelData.create_level(1)
 
 	print("Level: %s (ID: %d)" % [level.level_name, level.level_id])
 	print("Move limit: %d" % level.move_limit)

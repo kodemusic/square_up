@@ -15,8 +15,8 @@ var square_glow_scene := preload("res://scenes/SquareGlow.tscn")
 var tile_container: Node2D = null
 
 ## Isometric tile dimensions (set by load_level)
-var tile_width: float = 128.0
-var tile_height: float = 64.0
+var tile_width: float = 64.0
+var tile_height: float = 32.0
 
 ## Emitted when tiles are matched and points are awarded
 signal score_awarded(points: int)
@@ -276,16 +276,18 @@ func _filter_non_overlapping_squares(squares: Array[Vector2i]) -> Array[Vector2i
 	return non_overlapping
 
 ## Award points for matched squares without locking them
-## Points scale with height: base_points * (height + 1)
-func award_points_for_matches(positions: Array[Vector2i], points_per_square: int = 10) -> void:
+## Points scale with height: base_points * (height + 1) * combo_multiplier
+## combo_multiplier: Cascade depth (1 = normal, 2 = first cascade, 3 = second cascade, etc.)
+func award_points_for_matches(positions: Array[Vector2i], points_per_square: int = 10, combo_multiplier: int = 1) -> void:
 	var total_points := 0
 	for top_left in positions:
 		# Validate square is fully on board
 		if top_left.x < 0 or top_left.y < 0 or top_left.x + 1 >= width or top_left.y + 1 >= height:
 			continue
 		var square_height: int = board[top_left.y][top_left.x]["height"]
-		# Award points with height multiplier (height 0 = 1x, height 1 = 2x, etc.)
-		total_points += points_per_square * (square_height + 1)
+		# Award points with height multiplier AND combo multiplier
+		# Formula: base_points * (height + 1) * combo_multiplier
+		total_points += points_per_square * (square_height + 1) * combo_multiplier
 		
 		# Spawn glow effect at center of 2x2 square
 		_spawn_square_glow(top_left, square_height)
@@ -392,7 +394,7 @@ func refill_empty_spaces(colors: Array[int]) -> Array[Vector2i]:
 ## height_step: Vertical offset per height level
 ## input_router: Optional InputRouter to connect tile signals
 func load_level(tile_scene: PackedScene, p_tile_container: Node2D, level: LevelData,
-				p_tile_width: float = 128.0, p_tile_height: float = 64.0, height_step: float = 8.0,
+				p_tile_width: float = 64.0, p_tile_height: float = 32.0, height_step: float = 8.0,
 				input_router: Node = null) -> void:
 	# Store references for glow spawning
 	tile_container = p_tile_container

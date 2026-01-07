@@ -1,8 +1,12 @@
 extends Node
 
 ## Debug script to find which Level 2 puzzle definition creates starting matches
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Level 2 Puzzle Validation ===\n")
 
 	# All puzzle definitions from _get_level_2_grid

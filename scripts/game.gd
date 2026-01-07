@@ -18,6 +18,15 @@ var current_level: LevelData
 ## Number of moves made in current level
 var moves_count := 0
 
+## Pre-generated next level (reduces lag when progressing)
+var next_level_cached: LevelData = null
+
+## Whether we're currently generating the next level
+var is_pregenerating := false
+
+## Persistent level ID for testing (survives scene reload)
+static var test_level_id: int = 1
+
 ## Load a level by its ID
 func _load_level_by_id(level_id: int) -> LevelData:
 	# Use the centralized factory function
@@ -30,6 +39,10 @@ func _ready() -> void:
 		var game_manager = get_node("/root/GameManager")
 		level_id = game_manager.player_progress["current_level"]
 		print("Loading level %d from GameManager" % level_id)
+	else:
+		# Testing mode: use static variable to persist across reloads
+		level_id = test_level_id
+		print("Loading level %d (testing mode)" % level_id)
 
 	# Load the appropriate level based on level_id
 	current_level = _load_level_by_id(level_id)
@@ -46,8 +59,8 @@ func _ready() -> void:
 	print("Starting grid:")
 	current_level.print_grid(current_level.starting_grid)
 
-	# Use correct isometric tile dimensions: 128x64
-	board.load_level(tile_scene, tile_container, current_level, 128.0, 64.0, 8.0, input_router)
+	# Use correct isometric tile dimensions: 64x32 (visual scale 0.135)
+	board.load_level(tile_scene, tile_container, current_level, 64.0, 32.0, 8.0, input_router)
 
 	# Pass level configuration to input router
 	input_router.set_current_level(current_level)
@@ -127,6 +140,9 @@ func _on_level_complete() -> void:
 	# Show level complete with stars
 	hud.show_level_complete_with_stars(stars, moves_remaining)
 
+	# Pre-generate next level in background (with artistic delay)
+	_pregenerate_next_level()
+
 	# Report completion to GameManager
 	if has_node("/root/GameManager"):
 		var game_manager = get_node("/root/GameManager")
@@ -156,7 +172,25 @@ func load_next_level() -> void:
 		var game_manager = get_node("/root/GameManager")
 		game_manager.load_next_level()
 	else:
-		print("GameManager not found - cannot load next level")
+		# Testing fallback: Level 1 -> Level 2 -> Endless
+		var next_level_id: int
+		if current_level.level_id == 1:
+			next_level_id = 2
+		elif current_level.level_id == 2:
+			next_level_id = 999  # Endless mode
+		else:
+			next_level_id = 1  # Loop back to level 1
+		
+		# Store for scene reload
+		test_level_id = next_level_id
+		
+		# Use cached level if available
+		if next_level_cached != null and next_level_cached.level_id == next_level_id:
+			print("Using pre-generated level %d (instant load!)" % next_level_id)
+			next_level_cached = null  # Clear cache
+		
+		# Reload scene with new level
+		get_tree().reload_current_scene()
 
 ## HUD signal handlers
 func _on_restart_requested() -> void:
@@ -176,3 +210,40 @@ func _on_undo_completed() -> void:
 	if moves_count > 0:
 		moves_count -= 1
 		hud.update_moves(moves_count)
+
+## Pre-generate the next level in background to prevent lag
+## Includes artistic delay to mask generation time
+func _pregenerate_next_level() -> void:
+	if is_pregenerating:
+		return
+	
+	is_pregenerating = true
+	
+	# Determine next level ID
+	var next_id: int
+	if has_node("/root/GameManager"):
+		var game_manager = get_node("/root/GameManager")
+		next_id = game_manager.player_progress["current_level"] + 1
+	else:
+		# Testing fallback
+		if current_level.level_id == 1:
+			next_id = 2
+		elif current_level.level_id == 2:
+			next_id = 999
+		else:
+			next_id = 1
+	
+	print("Pre-generating level %d..." % next_id)
+	
+	# Add artistic delay (0.5-1.0 seconds) before starting generation
+	await get_tree().create_timer(randf_range(0.5, 1.0)).timeout
+	
+	# Generate the level
+	next_level_cached = _load_level_by_id(next_id)
+	
+	if next_level_cached != null:
+		print("Level %d pre-generated successfully" % next_id)
+	else:
+		push_warning("Failed to pre-generate level %d" % next_id)
+	
+	is_pregenerating = false

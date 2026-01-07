@@ -178,3 +178,97 @@ func _input(event):
 3. Add more levels with progressive difficulty
 4. Create a level select UI (optional)
 5. Add buttons to HUD for "Restart" and "Next Level"
+---
+
+## Recent Changes (January 6, 2026)
+
+### Cascade System Implementation ✅
+
+Implemented full cascade gameplay loop with combo multiplier system:
+
+**Core Mechanics:**
+- Match detection → Lock → Clear → Gravity → Refill → Check for new matches (recursive)
+- Combo multiplier tracks cascade depth (x1, x2, x3, x4...)
+- Score formula: `base_points × (height + 1) × combo_multiplier`
+
+**Files Modified:**
+- `scripts/input_router.gd`: Added `_check_cascade_matches(combo_depth)` with recursive loop
+- `scripts/board.gd`: Updated `award_points_for_matches()` to accept combo multiplier
+- `scripts/hud.gd`: Added `show_combo()` method with animated "COMBO xN" indicator
+
+**Visual Feedback:**
+- Combo indicator appears on 2nd+ cascade (scales up, fades out)
+- Gold text with black outline for visibility
+- Animation: scale 0.5→1.2→1.5 with fade in/out
+
+### Level Configuration Updates ✅
+
+Configured cascade mechanics on per-level basis for progressive difficulty:
+
+**Level 1 (Tutorial):**
+```gdscript
+lock_on_match = false
+clear_locked_squares = false
+enable_gravity = false
+refill_from_top = false
+```
+- Players learn basic matching without cascade complications
+
+**Level 2 (Main Gameplay):**
+```gdscript
+lock_on_match = true
+clear_locked_squares = true
+enable_gravity = true
+refill_from_top = true
+```
+- Introduces full cascade system with combo chains
+- Players experience satisfying chain reactions
+
+**Level 999 (Endless Mode):**
+- Full cascade enabled (unchanged)
+- Infinite score attack mode
+
+### Testing Progression ✅
+
+Added automatic level progression for testing without GameManager:
+
+**Files Modified:**
+- `scripts/game.gd`: Added `test_level_id` static variable and fallback progression
+- Progression flow: Level 1 → Level 2 → Level 999 (Endless)
+- Level ID persists across scene reloads using static variable
+
+**Behavior:**
+- If GameManager exists: Uses standard progression system
+- If no GameManager: Uses testing fallback (Level 1→2→999 loop)
+
+### Implementation Notes
+
+**Cascade Loop Logic:**
+```gdscript
+func _check_cascade_matches(combo_depth: int = 1) -> void:
+    var matches = find_matches()
+    if matches.size() > 0:
+        flash_matches()
+        award_points(matches, combo_depth)  # Multiplier applied here
+        if combo_depth > 1:
+            show_combo_indicator(combo_depth)
+        lock → clear → gravity → refill
+        await _check_cascade_matches(combo_depth + 1)  # Recursive
+```
+
+**Score Calculation:**
+- Base match: 10 points per square
+- Height multiplier: Each height level adds +1× (height 0 = 1×, height 1 = 2×)
+- Combo multiplier: Each cascade depth multiplies score (combo 2 = 2×, combo 3 = 3×)
+- Example: Match at height 1 on 3rd cascade = 10 × 2 × 3 = 60 points
+
+**Testing Checklist:**
+- [x] Cascade system recursively checks for matches after refill
+- [x] Combo multiplier increases with each cascade level
+- [x] HUD displays combo indicator for cascades
+- [x] Level 1 has no cascade (tutorial)
+- [x] Level 2 has full cascade (main gameplay)
+- [x] Level progression works without GameManager
+- [ ] Test cascade in-game with Level 2
+- [ ] Verify combo scores are correct
+- [ ] Ensure cascade terminates when no matches found

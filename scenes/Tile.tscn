@@ -15,7 +15,7 @@ position = Vector2(0.5, 8.5)
 
 [node name="visual" type="Node2D" parent="."]
 position = Vector2(0.5, 8.5)
-scale = Vector2(0.25, 0.25)
+scale = Vector2(0.135, 0.135)
 
 [node name="Highlight" type="Sprite2D" parent="visual"]
 
@@ -27,7 +27,7 @@ texture = ExtResource("2_r3gf4")
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
 position = Vector2(0, 32)
-polygon = PackedVector2Array(-1, -30, 57, -15, 0, 7, -58, -9)
+polygon = PackedVector2Array(-1, -27, 32, -19, 1, -8, -32, -16)
 
 [node name="StackedRoot" type="Node2D" parent="."]
 visible = false

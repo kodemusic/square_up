@@ -1,8 +1,12 @@
 extends Node
 
 ## Test Level 2 design to ensure it has exactly one obvious solution
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Level 2 Validation ===\n")
 
 	var level := LevelData.create_level_2()

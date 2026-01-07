@@ -1,13 +1,17 @@
 extends Node
 
 ## Test the LevelRules system and automatic level generation
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Testing Level Rules System ===\n")
 
 	# Test 1: Generate levels 1-10 with automatic difficulty progression
 	print("TEST 1: Automatic Difficulty Progression")
-	print("=" * 50)
+	print("=".repeat(50))
 	for i in range(1, 11):
 		var level := LevelData.create_level(i)
 		print("Level %d: %dx%d board, %d colors, goal=%d squares, limit=%d moves" % [
@@ -21,7 +25,7 @@ func _ready() -> void:
 
 	# Test 2: Create custom rules
 	print("\n\nTEST 2: Custom Rules")
-	print("=" * 50)
+	print("=".repeat(50))
 	var custom_rules := LevelRules.custom()
 	custom_rules.board_width = 5
 	custom_rules.board_height = 5
@@ -49,7 +53,7 @@ func _ready() -> void:
 
 	# Test 3: Verify difficulty presets
 	print("\n\nTEST 3: Difficulty Presets")
-	print("=" * 50)
+	print("=".repeat(50))
 	for difficulty in range(1, 6):
 		var rules := LevelRules.create_for_difficulty(difficulty)
 		print("\nDifficulty %d:" % difficulty)

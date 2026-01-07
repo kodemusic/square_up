@@ -9,6 +9,7 @@ signal swap_completed
 ## Reference to the board node for swap operations
 @onready var board := get_node("/root/Game/BoardRoot") as Node
 @onready var tile_container := get_node("/root/Game/BoardRoot/TileContainer") as Node2D
+@onready var hud := get_node("/root/Game/UILayer/Hud") as Control
 
 ## Currently selected tile (first tap)
 var selected_tile: Area2D = null
@@ -401,8 +402,8 @@ func _clear_locked_squares(positions: Array[Vector2i]) -> void:
 
 ## Apply gravity with tile drop animation
 func _apply_gravity() -> void:
-	const TILE_WIDTH := 128.0
-	const TILE_HEIGHT := 64.0
+	const TILE_WIDTH := 64.0
+	const TILE_HEIGHT := 32.0
 	const HEIGHT_STEP := 8.0
 
 	var moves: Array[Dictionary] = board.apply_gravity()
@@ -432,8 +433,8 @@ func _apply_gravity() -> void:
 
 ## Refill board with new tiles spawning from above
 func _refill_board() -> void:
-	const TILE_WIDTH := 128.0
-	const TILE_HEIGHT := 64.0
+	const TILE_WIDTH := 64.0
+	const TILE_HEIGHT := 32.0
 	const HEIGHT_STEP := 8.0
 
 	# Get available colors from level (default to 3 colors)
@@ -483,18 +484,23 @@ func _refill_board() -> void:
 	# Wait for all spawns to complete
 	await get_tree().create_timer(0.45).timeout
 
-## Check for cascade matches (recursive)
+## Check for cascade matches (recursive with combo tracking)
 ## Called after refilling to check if new tiles created matches
-func _check_cascade_matches() -> void:
+## combo_depth: Current chain reaction depth (1 = first match, 2 = first cascade, etc.)
+func _check_cascade_matches(combo_depth: int = 1) -> void:
 	var matches: Array[Vector2i] = board.find_all_2x2_matches()
 	if matches.size() > 0:
-		print("Cascade: Found %d matches!" % matches.size())
+		print("Cascade: Found %d matches! (Combo x%d)" % [matches.size(), combo_depth])
 
 		# Flash matched squares
 		await _flash_matched_squares(matches)
 
-		# Award points
-		board.award_points_for_matches(matches, 10)
+		# Award points with combo multiplier
+		board.award_points_for_matches(matches, 10, combo_depth)
+
+		# Show combo UI if this is a cascade (depth > 1)
+		if combo_depth > 1:
+			_show_combo_indicator(combo_depth)
 
 		# Check if we should lock (shouldn't happen in cascade but check anyway)
 		if current_level != null and current_level.lock_on_match:
@@ -511,5 +517,10 @@ func _check_cascade_matches() -> void:
 					if current_level.refill_from_top:
 						await _refill_board()
 
-						# Recursive cascade check
-						await _check_cascade_matches()
+						# Recursive cascade check with increased combo depth
+						await _check_cascade_matches(combo_depth + 1)
+
+## Show a brief combo indicator when cascades occur
+func _show_combo_indicator(combo: int) -> void:
+	if hud != null and hud.has_method("show_combo"):
+		hud.show_combo(combo)

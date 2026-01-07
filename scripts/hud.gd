@@ -44,6 +44,9 @@ var squares_goal := 0
 ## Whether undo has been used this level (only 1 undo per level for now)
 var undo_used := false
 
+## Combo indicator label (created dynamically)
+var combo_label: Label = null
+
 func _ready() -> void:
 	# Hide banner initially
 	banner.visible = false
@@ -57,6 +60,9 @@ func _ready() -> void:
 	update_score(0)
 	update_moves(0)
 	update_undo_button()
+	
+	# Create combo label
+	_create_combo_label()
 
 ## Update the score display
 ## points: New total score to display
@@ -237,3 +243,51 @@ func _on_next_level_pressed() -> void:
 func _on_undo_pressed() -> void:
 	if not undo_used:
 		emit_signal("undo_requested")
+
+## Create the combo indicator label
+func _create_combo_label() -> void:
+	combo_label = Label.new()
+	combo_label.name = "ComboLabel"
+	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	combo_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	combo_label.position = Vector2(get_viewport_rect().size.x / 2 - 100, get_viewport_rect().size.y / 2 - 100)
+	combo_label.size = Vector2(200, 100)
+	combo_label.add_theme_font_size_override("font_size", 48)
+	combo_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.0))  # Gold color
+	combo_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	combo_label.add_theme_constant_override("outline_size", 4)
+	combo_label.visible = false
+	combo_label.modulate.a = 0.0
+	add_child(combo_label)
+
+## Show combo indicator with animation
+## combo: The combo multiplier (2, 3, 4, etc.)
+func show_combo(combo: int) -> void:
+	if combo_label == null:
+		return
+	
+	combo_label.text = "COMBO x%d" % combo
+	combo_label.visible = true
+	combo_label.scale = Vector2(0.5, 0.5)
+	combo_label.modulate.a = 0.0
+	
+	# Animate in: scale up and fade in
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(combo_label, "scale", Vector2(1.2, 1.2), 0.2)\
+		 .set_trans(Tween.TRANS_BACK)\
+		 .set_ease(Tween.EASE_OUT)
+	tween.tween_property(combo_label, "modulate:a", 1.0, 0.2)
+	
+	# Hold for a moment
+	tween.chain().tween_interval(0.5)
+	
+	# Animate out: scale up more and fade out
+	tween.tween_property(combo_label, "scale", Vector2(1.5, 1.5), 0.3)\
+		 .set_trans(Tween.TRANS_QUAD)\
+		 .set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(combo_label, "modulate:a", 0.0, 0.3)
+	
+	# Hide after animation
+	await tween.finished
+	combo_label.visible = false

@@ -1,8 +1,12 @@
 extends Node
 
 ## Test the hybrid Level 2 generation system
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Testing Hybrid Level 2 Generation ===\n")
 
 	# Test Template 1

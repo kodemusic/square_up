@@ -2,8 +2,12 @@ extends Node
 
 ## Test and validate Level 1 (first teaching level)
 ## 4x4 board with 2 colors, 1-move solution
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
+	if not OS.is_debug_build():
+		return  # Don't run tests in production builds
+	
 	print("\n=== Level 1 Validation (4x4, 2 Colors) ===\n")
 
 	var level := LevelData.create_level_1()

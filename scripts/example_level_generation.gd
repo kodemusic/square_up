@@ -1,11 +1,15 @@
 extends Node
 
 ## Complete example showing all ways to generate levels
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
-	print("\n" + "=" * 60)
+	if not OS.is_debug_build():
+		return  # Don't run examples in production builds
+	
+	print("\n" + "=".repeat(60))
 	print("  LEVEL GENERATION SYSTEM - COMPLETE EXAMPLES")
-	print("=" * 60 + "\n")
+	print("=".repeat(60) + "\n")
 
 	# EXAMPLE 1: Simple automatic generation (recommended)
 	example_1_automatic()
@@ -22,9 +26,9 @@ func _ready() -> void:
 	# EXAMPLE 5: Generate campaign (levels 1-10)
 	example_5_campaign()
 
-	print("\n" + "=" * 60)
+	print("\n" + "=".repeat(60))
 	print("  ALL EXAMPLES COMPLETE")
-	print("=" * 60 + "\n")
+	print("=".repeat(60) + "\n")
 
 ## EXAMPLE 1: Automatic generation - simplest approach
 func example_1_automatic() -> void:
@@ -135,7 +139,7 @@ func example_5_campaign() -> void:
 
 	print("Generated 10-level campaign:")
 	print("\n  Lvl | Board | Clrs | Goal | Limit | Lock")
-	print("  " + "-" * 46)
+	print("  " + "-".repeat(46))
 	for level in campaign:
 		print("  %2d  | %dx%d  |  %d   |  %d   |  %2d   | %s" % [
 			level.level_id,

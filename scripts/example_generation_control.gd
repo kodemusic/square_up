@@ -1,11 +1,15 @@
 extends Node
 
 ## Example: How to control level generation with the new API
+## NOTE: Only runs in debug builds to avoid production issues
 
 func _ready() -> void:
-	print("\n" + "=" * 60)
+	if not OS.is_debug_build():
+		return  # Don't run examples in production builds
+	
+	print("\n" + "=".repeat(60))
 	print("  GENERATION CONTROL EXAMPLES")
-	print("=" * 60 + "\n")
+	print("=".repeat(60) + "\n")
 
 	# Run examples
 	example_1_default_behavior()
@@ -13,9 +17,9 @@ func _ready() -> void:
 	example_3_manual_control()
 	example_4_conditional_generation()
 
-	print("\n" + "=" * 60)
+	print("\n" + "=".repeat(60))
 	print("  ALL EXAMPLES COMPLETE")
-	print("=" * 60 + "\n")
+	print("=".repeat(60) + "\n")
 
 ## EXAMPLE 1: Default behavior (auto-generate + cache)
 func example_1_default_behavior() -> void:
@@ -26,13 +30,13 @@ func example_1_default_behavior() -> void:
 
 	# First call - generates and caches
 	var start1 = Time.get_ticks_msec()
-	var level1 = LevelData.create_level(3)
+	var _level1 = LevelData.create_level(3)
 	var time1 = Time.get_ticks_msec() - start1
 	print("First call to create_level(3): %d ms (generated)" % time1)
 
 	# Second call - returns cached
 	var start2 = Time.get_ticks_msec()
-	var level2 = LevelData.create_level(3)
+	var _level2 = LevelData.create_level(3)
 	var time2 = Time.get_ticks_msec() - start2
 	print("Second call to create_level(3): %d ms (cached)" % time2)
 
@@ -51,7 +55,7 @@ func example_2_pre_generate() -> void:
 	# Now all calls are instant
 	var start = Time.get_ticks_msec()
 	for i in range(1, 11):
-		var level = LevelData.create_level(i)
+		var _level = LevelData.create_level(i)
 	var elapsed = Time.get_ticks_msec() - start
 
 	print("Loaded 10 cached levels in: %d ms" % elapsed)

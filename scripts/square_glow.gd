@@ -5,8 +5,8 @@ extends Node2D
 @export var scale_to: float = 1.15
 
 # These should match your iso step (the same values you use in grid_to_iso)
-@export var tile_w: float = 128.0
-@export var tile_h: float = 64.0
+@export var tile_w: float = 64.0
+@export var tile_h: float = 32.0
 
 func play(color: Color) -> void:
     # Make a 2x2 "footprint diamond" around the center.
