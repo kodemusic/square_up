@@ -113,14 +113,13 @@ func set_cell(x: int, y: int, color: int, z: int, state: int) -> void:
 	board[y][x]["height"] = z
 	board[y][x]["state"] = state
 
-## Convert grid coordinates to screen position
-## Mobile-first: Square grid (64x64 tiles, not isometric)
-func grid_to_iso(row: float, col: float, z: float, tw: float, _th: float, height_step: float) -> Vector2:
-	# Square grid: simple x,y mapping
-	# tw parameter is now tile_size (64x64)
-	# _th parameter kept for API compatibility but unused in square grid
-	var x := col * tw
-	var y := row * tw - (z * height_step)
+## Convert grid coordinates to isometric screen position
+## Diamond isometric projection: rotate grid 45° and compress Y axis
+func grid_to_iso(row: float, col: float, z: float, tw: float, th: float, height_step: float) -> Vector2:
+	# X position: difference of col and row determines horizontal placement
+	var x := (col - row) * (tw * 0.5)
+	# Y position: sum of col and row determines depth, subtract height offset
+	var y := (col + row) * (th * 0.5) - (z * height_step)
 	return Vector2(x, y)
 
 ## Attempt to swap two tiles, returns true if swap creates a match
@@ -344,29 +343,46 @@ func clear_locked_squares(positions: Array[Vector2i]) -> void:
 				set_cell(pos.x, pos.y, COLOR_NONE, 0, STATE_NORMAL)
 
 ## Apply gravity: tiles drop into empty spaces below them
+## GOLD STANDARD ALGORITHM: Column-based approach
 ## Returns array of moves that occurred: [{from: Vector2i, to: Vector2i}]
 func apply_gravity() -> Array[Dictionary]:
 	var moves: Array[Dictionary] = []
-
-	# Process each column from bottom to top
+	
+	# Process each column independently (the gold standard mental model 🧠)
 	for x in range(width):
-		# Start from bottom row, look for empty cells
-		for y in range(height - 1, -1, -1):
+		# STEP 1: Read all non-null tiles into a list (bottom to top)
+		var tiles_in_column: Array[Dictionary] = []
+		for y in range(height - 1, -1, -1):  # Bottom to top
 			var cell := get_cell(x, y)
-			if cell["color"] == COLOR_NONE:
-				# Find the first non-empty tile above this empty space
-				for y_above in range(y - 1, -1, -1):
-					var above := get_cell(x, y_above)
-					if above["color"] != COLOR_NONE:
-						# Move tile down
-						set_cell(x, y, above["color"], above["height"], above["state"])
-						set_cell(x, y_above, COLOR_NONE, 0, STATE_NORMAL)
-						moves.append({
-							"from": Vector2i(x, y_above),
-							"to": Vector2i(x, y)
-						})
-						break
-
+			if cell["color"] != COLOR_NONE:
+				# Store tile data with original position
+				tiles_in_column.append({
+					"color": cell["color"],
+					"height": cell["height"],
+					"state": cell["state"],
+					"from_y": y
+				})
+		
+		# STEP 2: Clear the column
+		for y in range(height):
+			set_cell(x, y, COLOR_NONE, 0, STATE_NORMAL)
+		
+		# STEP 3: Reinsert tiles starting from the bottom
+		var insert_y := height - 1  # Start at bottom
+		for tile_data in tiles_in_column:
+			set_cell(x, insert_y, tile_data["color"], tile_data["height"], tile_data["state"])
+			
+			# Track movement if tile changed position
+			if insert_y != tile_data["from_y"]:
+				moves.append({
+					"from": Vector2i(x, tile_data["from_y"]),
+					"to": Vector2i(x, insert_y)
+				})
+			
+			insert_y -= 1  # Move up for next tile
+		
+		# STEP 4: Any remaining slots at the top = spawn points (handled by refill_empty_spaces)
+	
 	return moves
 
 ## Spawn new random tiles to fill empty spaces

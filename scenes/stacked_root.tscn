@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://b4epd3e4xtml6"]
+
+[ext_resource type="Texture2D" uid="uid://bedsl608esajw" path="res://assets/cube_base_stack2.png" id="1_u61ji"]
+
+[node name="StackedRoot" type="Node2D"]
+scale = Vector2(0.25, 0.12)
+
+[node name="Stack_slice1" type="Sprite2D" parent="."]
+texture = ExtResource("1_u61ji")
+
+[node name="Stack_slice2" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(0, 30.000004)
+scale = Vector2(0.25, 0.12)
+texture = ExtResource("1_u61ji")

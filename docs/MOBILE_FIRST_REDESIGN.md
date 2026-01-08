@@ -47,7 +47,73 @@ Redesigned the game with a **mobile-first approach**, changing from desktop-firs
 
 ## Files Modified
 
-### 1. `project.godot`
+### 1. `scenes/Game.tscn`
+**Changes:**
+- **Camera position**: `Vector2(960, 540)` → `Vector2(360, 540)`
+  - 360 = center of 720px width (720 / 2)
+  - 540 = center of 1080px height (1080 / 2)
+- **Camera zoom**: `Vector2(1.33, 1.33)` → `Vector2(1, 1)`
+  - Removed desktop zoom for 1:1 mobile rendering
+
+```diff
+[node name="Camera2D" type="Camera2D" parent="."]
+- position = Vector2(960, 540)
+- zoom = Vector2(1.33, 1.33)
++ position = Vector2(360, 540)
++ zoom = Vector2(1, 1)
+```
+
+### 2. `scenes/MainMenu.tscn`
+**Changes:**
+- **VBoxContainer size**: Adjusted for 720x1080 mobile screen
+- **Removed scale**: No longer needs 1.5x scaling
+
+```diff
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+- offset_left = -300.0
+- offset_top = -240.0
+- offset_right = 300.0
+- offset_bottom = 240.0
+- scale = Vector2(1.5, 1.5)
++ offset_left = -180.0
++ offset_top = -300.0
++ offset_right = 180.0
++ offset_bottom = 300.0
+```
+
+### 3. `scenes/HUD.tscn`
+**Changes:**
+- **TopBar**: Removed offset and scale for mobile
+- **CenterBanner**: Resized for mobile screen
+- **BottomBar**: Removed offset and scale
+
+```diff
+[node name="TopBar" type="HBoxContainer" parent="."]
+- offset_right = -240.0
+- offset_bottom = 85.333336
+- scale = Vector2(1.5, 1.5)
++ offset_bottom = 60.0
+
+[node name="CenterBanner" type="CenterContainer" parent="."]
+- offset_left = -360.0
+- offset_top = -140.0
+- offset_right = 120.0
+- offset_bottom = 160.0
+- scale = Vector2(1.5, 1.5)
++ offset_left = -200.0
++ offset_top = -100.0
++ offset_right = 200.0
++ offset_bottom = 100.0
+
+[node name="BottomBar" type="HBoxContainer" parent="."]
+- offset_top = -120.0
+- offset_right = -240.0
+- offset_bottom = -40.0
+- scale = Vector2(1.5, 1.5)
++ offset_top = -60.0
+```
+
+### 4. `project.godot`
 **Already configured** - Window size was 720x1080:
 ```gdscript
 [display]
@@ -58,7 +124,7 @@ window/stretch/aspect="expand"
 window/handheld/orientation=1
 ```
 
-### 2. `scenes/Tile.tscn`
+### 5. `scenes/Tile.tscn`
 **Already configured** - Visual scale changed to (0.135, 0.275):
 ```
 [node name="visual" type="Node2D" parent="."]
@@ -72,20 +138,7 @@ scale = Vector2(0.135, 0.275)  # Makes 474x233 sprite appear as 64x64
 - Scale Y: 233 × 0.275 = 64px
 - Result: Perfect 64×64 square tile
 
-### 3. `scenes/Game.tscn`
-**Changes:**
-- **Camera position**: `Vector2(960, 540)` → `Vector2(360, 540)`
-  - 360 = center of 720px width (720 / 2)
-  - 540 = center of 1080px height (1080 / 2)
-
-```diff
-[node name="Camera2D" type="Camera2D" parent="."]
-- position = Vector2(960, 540)
-+ position = Vector2(360, 540)
-zoom = Vector2(1.33, 1.33)
-```
-
-### 4. `scripts/game.gd`
+### 6. `scripts/game.gd`
 
 #### Change 1: Tile dimensions for board loading
 ```diff
@@ -137,7 +190,7 @@ zoom = Vector2(1.33, 1.33)
 - **Mobile-first**: Portrait is base (1.0x), landscape scales down to 0.9x
 - Landscape phones (1080x720) have less vertical space, so we shrink slightly
 
-### 5. `scripts/board.gd`
+### 7. `scripts/board.gd`
 
 **Change: grid_to_iso → grid_to_square (renamed logic)**
 ```diff
@@ -166,7 +219,7 @@ zoom = Vector2(1.33, 1.33)
 - **Square**: `x = col * tw`, `y = row * tw`
 - **Height**: Both subtract `z * height_step` for stacked tiles
 
-### 6. `scenes/PortraitLayout.tscn`
+### 8. `scenes/PortraitLayout.tscn`
 
 **Change: BoardAnchor size for mobile portrait**
 ```diff
@@ -192,7 +245,7 @@ anchor_bottom = 0.5
 - Anchor: 360px × 480px (allows scaling headroom)
 - Centered at screen center (360, 540)
 
-### 7. `scenes/LandscapeLayout.tscn`
+### 9. `scenes/LandscapeLayout.tscn`
 
 **Change: BoardAnchor size for landscape orientation**
 ```diff

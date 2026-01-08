@@ -1,9 +1,8 @@
 [gd_scene load_steps=2 format=3 uid="uid://bdvhlajeu3son"]
 
-[ext_resource type="Texture2D" uid="uid://cl6atignilmk0" path="res://assets/base_playfeild.png" id="1_8f42x"]
+[ext_resource type="Texture2D" uid="uid://bm81bqivqtxom" path="res://assets/cube_base_playfield.png" id="1_8f42x"]
 
 [node name="base_playfield" type="Node2D"]
-visible = false
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 modulate = Color(0.33237436, 0.71342397, 0.71342397, 1)

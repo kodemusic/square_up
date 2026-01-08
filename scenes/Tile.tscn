@@ -1,50 +1,38 @@
 [gd_scene load_steps=5 format=3 uid="uid://rnodqd56bedi"]
 
 [ext_resource type="Script" uid="uid://nmqg5861vslg" path="res://scripts/tile.gd" id="1_vhibn"]
-[ext_resource type="Texture2D" uid="uid://bijgc5hevaebt" path="res://assets/cube_base.png" id="2_r3gf4"]
-[ext_resource type="Texture2D" uid="uid://cgg0crnpwk2su" path="res://assets/cube_base_stack.png" id="3_r3gf4"]
+[ext_resource type="Texture2D" uid="uid://cwlv0bgkfl3w6" path="res://assets/cube_base2.png" id="2_r3gf4"]
+[ext_resource type="PackedScene" uid="uid://b4epd3e4xtml6" path="res://scenes/stacked_root.tscn" id="2_rvdvl"]
 [ext_resource type="PackedScene" uid="uid://bdvhlajeu3son" path="res://scenes/base_playfield.tscn" id="4_rvdvl"]
 
 [node name="Tile" type="Area2D"]
+input_pickable = true
 script = ExtResource("1_vhibn")
 color_id = 1
+slice_scene = ExtResource("2_rvdvl")
 
 [node name="Anim" type="AnimationPlayer" parent="."]
 
 [node name="base_playfield" parent="." instance=ExtResource("4_rvdvl")]
-position = Vector2(1, 90)
-scale = Vector2(0.135, 0.275)
+position = Vector2(1, 48)
+scale = Vector2(1, 0.421)
 
 [node name="HeightStack" type="Node2D" parent="."]
-position = Vector2(-0.29999924, -31.8)
+position = Vector2(2, 42.000004)
 
 [node name="visual" type="Node2D" parent="."]
-position = Vector2(-0.79999924, -16.3)
-scale = Vector2(0.135, 0.275)
+position = Vector2(-0.099998474, 0.20000076)
+scale = Vector2(0.27, 0.12)
 
 [node name="Highlight" type="Sprite2D" parent="visual"]
 
 [node name="LockIcon" type="Sprite2D" parent="visual"]
 
 [node name="Sprite2D" type="Sprite2D" parent="visual"]
-position = Vector2(5.9259205, 50.153805)
+position = Vector2(5.3148155, 123.33333)
+scale = Vector2(0.989746, 1.0509642)
 texture = ExtResource("2_r3gf4")
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
-visible = false
-position = Vector2(-0.79999924, -5.299999)
-polygon = PackedVector2Array(-1, -27, 32, -19, 1, -8, -32, -16)
-
-[node name="StackedRoot" type="Node2D" parent="."]
-visible = false
-position = Vector2(0, 2)
-
-[node name="Stack_slice1" type="Sprite2D" parent="StackedRoot"]
-position = Vector2(0, 39)
-scale = Vector2(0.135, 0.135)
-texture = ExtResource("3_r3gf4")
-
-[node name="Stack_slice2" type="Sprite2D" parent="StackedRoot"]
-position = Vector2(0.15, 51)
-scale = Vector2(0.135, 0.135)
-texture = ExtResource("3_r3gf4")
+position = Vector2(-0.099998474, 11.200001)
+polygon = PackedVector2Array(1.0999985, -11.200001, 31.099998, -4.200001, 2.0999985, 5.799999, -27.900002, -1.2000008)

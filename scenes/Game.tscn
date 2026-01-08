@@ -10,18 +10,16 @@
 
 [node name="Game" type="Node"]
 script = ExtResource("1_cpr0p")
+board_fill_percentage = 0.85
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(360, 540)
-zoom = Vector2(1.33, 1.33)
 
 [node name="LayoutManager" type="Node" parent="."]
 script = ExtResource("4_layout")
 
 [node name="PortraitLayout" parent="LayoutManager" instance=ExtResource("5_portrait")]
 visible = false
-offset_right = -840.0
-offset_bottom = 840.0
 
 [node name="LandscapeLayout" parent="LayoutManager" instance=ExtResource("6_landscape")]
 
@@ -38,8 +36,6 @@ offset_bottom = 40.0
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="Hud" parent="UILayer" instance=ExtResource("2_qbsmt")]
-offset_top = -6.0
-offset_bottom = -6.0
 
 [node name="InputRouter" type="Node" parent="."]
 script = ExtResource("3_input")

@@ -2,12 +2,13 @@
 
 [ext_resource type="Script" uid="uid://btpgsbd32f31v" path="res://scripts/board.gd" id="1_78nn4"]
 
-[node name="BoardRoot" type="Node"]
+[node name="BoardRoot" type="Node2D"]
 script = ExtResource("1_78nn4")
 
-[node name="BoardController" type="Node" parent="."]
+[node name="BoardController" type="Node2D" parent="."]
+scale = Vector2(1.85, 1.85)
 
-[node name="TileContainer" type="Node2D" parent="."]
+[node name="TileContainer" type="Node2D" parent="BoardController"]
 
 [node name="Overlay" type="Node2D" parent="."]
 

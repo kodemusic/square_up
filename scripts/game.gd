@@ -3,16 +3,24 @@ extends Node
 ## Main game controller
 ## Loads levels and manages game state
 
+## Camera zoom configuration
+@export_group("Camera Zoom")
+@export_range(0.0, 1.0, 0.05) var board_fill_percentage: float = 0.8 ## How much of anchor to fill (0.8 = 80% fill, 20% padding)
+@export_range(1.0, 10.0, 0.1) var min_zoom: float = 1.0 ## Minimum camera zoom (zoomed out)
+@export_range(1.0, 10.0, 0.1) var max_zoom: float = 5.0 ## Maximum camera zoom (zoomed in)
+
 ## Reference to the tile scene to spawn
 var tile_scene := preload("res://scenes/Tile.tscn")
 
 ## References to scene nodes
 @onready var board := $BoardRoot as Node
-@onready var tile_container := $BoardRoot/TileContainer as Node2D
+@onready var board_controller := $BoardRoot/BoardController as Node2D
+@onready var tile_container := $BoardRoot/BoardController/TileContainer as Node2D
 @onready var overlay := $BoardRoot/Overlay as Node2D
 @onready var input_router := $InputRouter as Node
 @onready var hud := $UILayer/Hud as Control
 @onready var layout_manager := $LayoutManager as Node
+@onready var camera := $Camera2D as Camera2D
 
 ## Current level being played
 var current_level: LevelData
@@ -64,8 +72,8 @@ func _ready() -> void:
 	print("Starting grid:")
 	current_level.print_grid(current_level.starting_grid)
 
-	# Mobile-first: 64x64 square tiles (visual scale 0.135 x 0.275)
-	board.load_level(tile_scene, tile_container, current_level, 64.0, 64.0, 8.0, input_router)
+	# Isometric tiles: 64x32 (visual scale 0.27x0.12 in editor)
+	board.load_level(tile_scene, tile_container, current_level, 64.0, 32.0, 8.0, input_router)
 
 	# Pass level configuration to input router
 	input_router.set_current_level(current_level)
@@ -277,42 +285,75 @@ func _position_board_in_layout() -> void:
 	# Calculate center of BoardAnchor
 	var anchor_center: Vector2 = anchor_global_pos + (anchor_size / 2.0)
 
-	# Calculate the visual center of the isometric board
-	# The board tiles are positioned relative to (0,0) in tile_container
-	# To center the board, we need to offset by the negative of the board's center point
-	var board_center_row := (current_level.height - 1) / 2.0
-	var board_center_col := (current_level.width - 1) / 2.0
+	# Wait a frame for tiles to be positioned by board.gd (at default 1.0 zoom)
+	await get_tree().process_frame
 
-	# Convert board center to screen coordinates
-	# Mobile-first: 64x64 square tiles (not isometric)
-	# Visual scale is (0.135, 0.275) applied to 474x233 sprite = 64x64 on screen
-	var tile_size := 64.0
-	var board_center_x := board_center_col * tile_size
-	var board_center_y := board_center_row * tile_size
-	var board_visual_center := Vector2(board_center_x, board_center_y)
+	# Compute actual visual bounds of all tiles in TileContainer
+	var min_x := INF
+	var min_y := INF
+	var max_x := -INF
+	var max_y := -INF
 
-	# Position tile_container so that the board's visual center aligns with anchor center
-	# We subtract the board's visual center to shift it to the anchor center
-	tile_container.global_position = anchor_center - board_visual_center
+	for child in tile_container.get_children():
+		if child is Node2D:
+			var p: Vector2 = child.global_position
+			min_x = min(min_x, p.x)
+			min_y = min(min_y, p.y)
+			max_x = max(max_x, p.x)
+			max_y = max(max_y, p.y)
 
-	# MONUMENT VALLEY SOLUTION: Scale board based on orientation
-	# Mobile-first approach (720x1080 portrait is base)
-	# Portrait: 1.0x (normal size - optimized for mobile)
-	# Landscape: 0.9x (slightly smaller to fit horizontal orientation)
-	var board_scale: float = 0.9 if not is_portrait else 1.0
-	tile_container.scale = Vector2(board_scale, board_scale)
-	overlay.scale = Vector2(board_scale, board_scale)
+	# Calculate actual board dimensions in world space
+	var board_width := max_x - min_x
+	var board_height := max_y - min_y
+
+	# GODOT 4 BEST PRACTICE: Dynamic camera zoom based on board size
+	# Calculate zoom to fit board in anchor with configurable padding
+	var zoom_x := (anchor_size.x * board_fill_percentage) / board_width if board_width > 0 else 1.0
+	var zoom_y := (anchor_size.y * board_fill_percentage) / board_height if board_height > 0 else 1.0
+
+	# Use the smaller zoom to ensure board fits in both dimensions
+	var camera_zoom: float = min(zoom_x, zoom_y)
+
+	# Clamp zoom to configurable range
+	camera_zoom = clamp(camera_zoom, min_zoom, max_zoom)
+
+	# Apply zoom
+	camera.zoom = Vector2(camera_zoom, camera_zoom)
+
+	# Calculate the actual visual center of the board
+	var board_visual_center := Vector2((min_x + max_x) * 0.5, (min_y + max_y) * 0.5)
+
+	# TALL PHONE ADJUSTMENT: On portrait devices, nudge board upward by 6%
+	# This compensates for optical center shift on tall phones (Samsung Fold 4, iPhone 14 Pro Max)
+	# where bottom UI elements make the board feel too low if mathematically centered
+	var target_position := anchor_center
+	if is_portrait:
+		var viewport_height := get_viewport().get_visible_rect().size.y
+		var nudge_amount := viewport_height * 0.06
+		target_position.y -= nudge_amount  # 6% upward nudge
+		print("[Game] Portrait mode: Applying 6%% upward nudge (%.1fpx)" % nudge_amount)
+
+	# Move BoardController so the visual center lands on target position
+	var offset := target_position - board_visual_center
+	board_controller.global_position += offset
 
 	print("[Game] Board positioning debug:")
 	print("  Orientation: %s" % ("Portrait" if is_portrait else "Landscape"))
 	print("  Board size: %dx%d" % [current_level.width, current_level.height])
-	print("  Board scale: %.1fx" % board_scale)
-	print("  Board visual center offset: %v" % board_visual_center)
+	print("  Board dimensions: %.1f x %.1f" % [board_width, board_height])
+	print("  Anchor size: %v (already accounts for safe area)" % anchor_size)
+	print("  Calculated zoom X: %.2f, Y: %.2f" % [zoom_x, zoom_y])
+	print("  Final camera zoom: %.2fx (clamped %.1f-%.1f)" % [camera_zoom, min_zoom, max_zoom])
+	print("  Board visual center: %v" % board_visual_center)
+	print("  Target position: %v" % target_position)
 	print("  Viewport size: %v" % get_viewport().get_visible_rect().size)
+	print("  Window size: %v" % DisplayServer.window_get_size())
 	print("  BoardAnchor global_pos: %v" % anchor_global_pos)
 	print("  BoardAnchor size: %v" % anchor_size)
 	print("  Anchor center: %v" % anchor_center)
-	print("  Tile container positioned at: %v (centered)" % tile_container.global_position)
+	print("  BoardController scale: %v" % board_controller.scale)
+	print("  BoardController positioned at: %v" % board_controller.global_position)
+	print("  TileContainer global position: %v" % tile_container.global_position)
 
 ## Handle orientation changes (portrait <-> landscape)
 ## Re-positions board when layout switches at runtime

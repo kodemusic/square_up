@@ -28,9 +28,9 @@ var squares_completed := 0
 var squares_goal := 0
 
 ## References to UI elements (cached in _ready)
-@onready var score_label := get_node("TopBar/ScoreBox/VBox/ScoreValue") as Label
-@onready var moves_label := get_node("TopBar/MovesBox/VBox/MovesValue") as Label
-@onready var goal_label := get_node("TopBar/GoalBox/VBox/GoalValue") as Label
+@onready var score_label := get_node("TopBarMargin/TopBar/ScoreBox/VBox/ScoreValue") as Label
+@onready var moves_label := get_node("TopBarMargin/TopBar/MovesBox/VBox/MovesValue") as Label
+@onready var goal_label := get_node("TopBarMargin/TopBar/GoalBox/VBox/GoalValue") as Label
 @onready var banner := get_node("CenterBanner") as CenterContainer
 @onready var banner_title := get_node("CenterBanner/Panel/VBox/BannerTitle") as Label
 @onready var banner_message := get_node("CenterBanner/Panel/VBox/BannerMessage") as Label
@@ -39,7 +39,7 @@ var squares_goal := 0
 @onready var popup_points := get_node("SquareUpPopup/Panel/VBox/PopupPoints") as Label
 @onready var retry_button := get_node("CenterBanner/Panel/VBox/ButtonContainer/RetryButton") as Button
 @onready var next_level_button := get_node("CenterBanner/Panel/VBox/ButtonContainer/NextLevelButton") as Button
-@onready var undo_button := get_node("BottomBar/UndoButton") as Button
+@onready var undo_button := get_node("BottomBarMargin/BottomBar/UndoButton") as Button
 
 ## Whether undo has been used this level (only 1 undo per level for now)
 var undo_used := false
@@ -49,12 +49,26 @@ var combo_label: Label = null
 
 func _ready() -> void:
 	# Hide banner initially
-	banner.visible = false
+	if banner:
+		banner.visible = false
+	else:
+		push_error("HUD: banner node not found")
 
-	# Connect button signals
-	retry_button.pressed.connect(_on_retry_pressed)
-	next_level_button.pressed.connect(_on_next_level_pressed)
-	undo_button.pressed.connect(_on_undo_pressed)
+	# Connect button signals with null checks
+	if retry_button:
+		retry_button.pressed.connect(_on_retry_pressed)
+	else:
+		push_error("HUD: retry_button not found at path CenterBanner/Panel/VBox/ButtonContainer/RetryButton")
+	
+	if next_level_button:
+		next_level_button.pressed.connect(_on_next_level_pressed)
+	else:
+		push_error("HUD: next_level_button not found at path CenterBanner/Panel/VBox/ButtonContainer/NextLevelButton")
+	
+	if undo_button:
+		undo_button.pressed.connect(_on_undo_pressed)
+	else:
+		push_error("HUD: undo_button not found at path BottomBarMargin/BottomBar/UndoButton")
 
 	# Initialize display
 	update_score(0)

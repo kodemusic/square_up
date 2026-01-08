@@ -18,22 +18,23 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -240.0
-offset_right = 300.0
-offset_bottom = 240.0
+offset_left = -180.0
+offset_top = -300.0
+offset_right = 180.0
+offset_bottom = 300.0
 grow_horizontal = 2
 grow_vertical = 2
-scale = Vector2(1.5, 1.5)
 theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 48
 text = "SQUARE UP"
 horizontal_alignment = 1
 
 [node name="Level" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 text = "Level: 1"
 horizontal_alignment = 1
 
@@ -43,6 +44,7 @@ layout_mode = 2
 
 [node name="PlayBtn" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 32
 text = "PLAY"
 
 [node name="LevelNav" type="HBoxContainer" parent="VBoxContainer"]
@@ -51,18 +53,22 @@ alignment = 1
 
 [node name="PrevBtn" type="Button" parent="VBoxContainer/LevelNav"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 text = "< PREV"
 
 [node name="NextBtn" type="Button" parent="VBoxContainer/LevelNav"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 text = "NEXT >"
 
 [node name="RestartBtn" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 text = "RESTART (Level 1)"
 
 [node name="EndlessBtn" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 text = "ENDLESS MODE"
 
 [node name="Spacer2" type="Control" parent="VBoxContainer"]
@@ -71,4 +77,5 @@ layout_mode = 2
 
 [node name="QuitBtn" type="Button" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 text = "QUIT"

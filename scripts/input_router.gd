@@ -8,7 +8,7 @@ signal swap_completed
 
 ## Reference to the board node for swap operations
 @onready var board := get_node("/root/Game/BoardRoot") as Node
-@onready var tile_container := get_node("/root/Game/BoardRoot/TileContainer") as Node2D
+@onready var tile_container := get_node("/root/Game/BoardRoot/BoardController/TileContainer") as Node2D
 @onready var hud := get_node("/root/Game/UILayer/Hud") as Control
 
 ## Currently selected tile (first tap)

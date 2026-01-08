@@ -43,11 +43,15 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 	# Ignore input if tile is locked (already matched)
 	if locked:
 		return
+	
 	# Handle both desktop clicks and mobile touches
-	if event is InputEventMouseButton and event.pressed:
-		emit_signal("tapped", self)
-	elif event is InputEventScreenTouch and event.pressed:
-		emit_signal("tapped", self)
+	# GODOT 4 TOUCH FIX: Check for button_index on mouse events to prevent double-trigger
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			tapped.emit(self)
+	elif event is InputEventScreenTouch:
+		if event.pressed:
+			tapped.emit(self)
 
 ## Lock or unlock this tile (locked tiles can't be swapped)
 func set_locked(value: bool) -> void:

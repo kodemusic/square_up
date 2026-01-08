@@ -12,80 +12,92 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_qpvh6")
 
-[node name="TopBar" type="HBoxContainer" parent="."]
+[node name="TopBarMargin" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 120.0
+offset_bottom = 80.0
 grow_horizontal = 2
-scale = Vector2(1.5, 1.5)
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="TopBar" type="HBoxContainer" parent="TopBarMargin"]
+layout_mode = 2
 alignment = 1
 
-[node name="ScoreBox" type="PanelContainer" parent="TopBar"]
+[node name="ScoreBox" type="PanelContainer" parent="TopBarMargin/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="VBox" type="VBoxContainer" parent="TopBar/ScoreBox"]
+[node name="VBox" type="VBoxContainer" parent="TopBarMargin/TopBar/ScoreBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="TopBar/ScoreBox/VBox"]
+[node name="Label" type="Label" parent="TopBarMargin/TopBar/ScoreBox/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 24
 text = "SCORE"
 horizontal_alignment = 1
 
-[node name="ScoreValue" type="Label" parent="TopBar/ScoreBox/VBox"]
+[node name="ScoreValue" type="Label" parent="TopBarMargin/TopBar/ScoreBox/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 44
 text = "0"
 horizontal_alignment = 1
 
-[node name="MovesBox" type="PanelContainer" parent="TopBar"]
+[node name="MovesBox" type="PanelContainer" parent="TopBarMargin/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="VBox" type="VBoxContainer" parent="TopBar/MovesBox"]
+[node name="VBox" type="VBoxContainer" parent="TopBarMargin/TopBar/MovesBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="TopBar/MovesBox/VBox"]
+[node name="Label" type="Label" parent="TopBarMargin/TopBar/MovesBox/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 24
 text = "MOVES"
 horizontal_alignment = 1
 
-[node name="MovesValue" type="Label" parent="TopBar/MovesBox/VBox"]
+[node name="MovesValue" type="Label" parent="TopBarMargin/TopBar/MovesBox/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 44
 text = "0"
 horizontal_alignment = 1
 
-[node name="GoalBox" type="PanelContainer" parent="TopBar"]
+[node name="GoalBox" type="PanelContainer" parent="TopBarMargin/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="VBox" type="VBoxContainer" parent="TopBar/GoalBox"]
+[node name="VBox" type="VBoxContainer" parent="TopBarMargin/TopBar/GoalBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="TopBar/GoalBox/VBox"]
+[node name="Label" type="Label" parent="TopBarMargin/TopBar/GoalBox/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 24
 text = "SQUARES"
 horizontal_alignment = 1
 
-[node name="GoalValue" type="Label" parent="TopBar/GoalBox/VBox"]
+[node name="GoalValue" type="Label" parent="TopBarMargin/TopBar/GoalBox/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 44
 text = "0 / 0"
 horizontal_alignment = 1
 
 [node name="CenterBanner" type="CenterContainer" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -150.0
-offset_right = 300.0
-offset_bottom = 150.0
+offset_left = -200.0
+offset_top = -100.0
+offset_right = 200.0
+offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
-scale = Vector2(1.5, 1.5)
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="CenterBanner"]
@@ -98,45 +110,54 @@ mouse_filter = 2
 
 [node name="BannerTitle" type="Label" parent="CenterBanner/Panel/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 44
 text = "SQUARE UP!"
 horizontal_alignment = 1
 
 [node name="BannerMessage" type="Label" parent="CenterBanner/Panel/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 horizontal_alignment = 1
 
 [node name="ButtonContainer" type="HBoxContainer" parent="CenterBanner/Panel/VBox"]
 layout_mode = 2
-alignment = 1
 mouse_filter = 2
+alignment = 1
 
 [node name="RetryButton" type="Button" parent="CenterBanner/Panel/VBox/ButtonContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 2
+theme_override_font_sizes/font_size = 32
 text = "RETRY"
 
 [node name="NextLevelButton" type="Button" parent="CenterBanner/Panel/VBox/ButtonContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 2
+theme_override_font_sizes/font_size = 32
 text = "NEXT LEVEL"
 
-[node name="BottomBar" type="HBoxContainer" parent="."]
+[node name="BottomBarMargin" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -120.0
+offset_top = -80.0
 grow_horizontal = 2
 grow_vertical = 0
-scale = Vector2(1.5, 1.5)
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="BottomBar" type="HBoxContainer" parent="BottomBarMargin"]
+layout_mode = 2
 alignment = 1
 
-[node name="UndoButton" type="Button" parent="BottomBar"]
+[node name="UndoButton" type="Button" parent="BottomBarMargin/BottomBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 32
 text = "UNDO"
 
 [node name="SquareUpPopup" type="CenterContainer" parent="."]
@@ -162,10 +183,27 @@ layout_mode = 2
 
 [node name="PopupText" type="Label" parent="SquareUpPopup/Panel/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 44
 text = "SQUARE UP!"
 horizontal_alignment = 1
 
 [node name="PopupPoints" type="Label" parent="SquareUpPopup/Panel/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 44
 text = "+100"
 horizontal_alignment = 1
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+layer = -10
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 30.745178
+offset_bottom = 36.005127
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.95505106, 0.96415323)
+mouse_filter = 2
+color = Color(0.50302523, 0.79360104, 0.7924357, 1)
