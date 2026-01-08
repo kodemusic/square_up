@@ -438,7 +438,7 @@ func _refill_board() -> void:
 	const HEIGHT_STEP := 8.0
 
 	# Get available colors from level (default to 3 colors)
-	var colors := [0, 1, 2]  # Red, Blue, Green
+	var colors: Array[int] = [0, 1, 2]  # Red, Blue, Green
 
 	# Spawn new tiles in board data
 	var spawned: Array[Vector2i] = board.refill_empty_spaces(colors)

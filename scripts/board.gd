@@ -113,13 +113,14 @@ func set_cell(x: int, y: int, color: int, z: int, state: int) -> void:
 	board[y][x]["height"] = z
 	board[y][x]["state"] = state
 
-## Convert grid coordinates to isometric screen position
-## Diamond isometric projection: rotate grid 45° and compress Y axis
-func grid_to_iso(row: float, col: float, z: float, tw: float, th: float, height_step: float) -> Vector2:
-	# X position: difference of col and row determines horizontal placement
-	var x := (col - row) * (tw * 0.5)
-	# Y position: sum of col and row determines depth, subtract height offset
-	var y := (col + row) * (th * 0.5) - (z * height_step)
+## Convert grid coordinates to screen position
+## Mobile-first: Square grid (64x64 tiles, not isometric)
+func grid_to_iso(row: float, col: float, z: float, tw: float, _th: float, height_step: float) -> Vector2:
+	# Square grid: simple x,y mapping
+	# tw parameter is now tile_size (64x64)
+	# _th parameter kept for API compatibility but unused in square grid
+	var x := col * tw
+	var y := row * tw - (z * height_step)
 	return Vector2(x, y)
 
 ## Attempt to swap two tiles, returns true if swap creates a match

@@ -9,6 +9,7 @@ var tile_scene := preload("res://scenes/Tile.tscn")
 ## References to scene nodes
 @onready var board := $BoardRoot as Node
 @onready var tile_container := $BoardRoot/TileContainer as Node2D
+@onready var overlay := $BoardRoot/Overlay as Node2D
 @onready var input_router := $InputRouter as Node
 @onready var hud := $UILayer/Hud as Control
 @onready var layout_manager := $LayoutManager as Node
@@ -34,6 +35,9 @@ func _load_level_by_id(level_id: int) -> LevelData:
 	return LevelData.create_level(level_id)
 
 func _ready() -> void:
+	# Ensure random seed is set (in case GameManager doesn't exist)
+	randomize()
+
 	# Load level from GameManager (if it exists as autoload)
 	var level_id: int = 1
 	if has_node("/root/GameManager"):
@@ -60,8 +64,8 @@ func _ready() -> void:
 	print("Starting grid:")
 	current_level.print_grid(current_level.starting_grid)
 
-	# Use correct isometric tile dimensions: 64x32 (visual scale 0.135)
-	board.load_level(tile_scene, tile_container, current_level, 64.0, 32.0, 8.0, input_router)
+	# Mobile-first: 64x64 square tiles (visual scale 0.135 x 0.275)
+	board.load_level(tile_scene, tile_container, current_level, 64.0, 64.0, 8.0, input_router)
 
 	# Pass level configuration to input router
 	input_router.set_current_level(current_level)
@@ -258,11 +262,13 @@ func _pregenerate_next_level() -> void:
 
 ## Position the board container relative to the active layout's BoardAnchor
 ## This implements layout-relative positioning (Golden Rule principle #5)
+## MONUMENT VALLEY SOLUTION: Board scales to feel right, UI scales to fit
 func _position_board_in_layout() -> void:
 	# Wait one frame to ensure layout nodes are ready
 	await get_tree().process_frame
 
 	var board_anchor: Control = layout_manager.get_active_board_anchor()
+	var is_portrait: bool = layout_manager.is_portrait()
 
 	# Get BoardAnchor's global position and size
 	var anchor_global_pos: Vector2 = board_anchor.global_position
@@ -271,10 +277,42 @@ func _position_board_in_layout() -> void:
 	# Calculate center of BoardAnchor
 	var anchor_center: Vector2 = anchor_global_pos + (anchor_size / 2.0)
 
-	# Position tile_container at anchor center
-	tile_container.global_position = anchor_center
+	# Calculate the visual center of the isometric board
+	# The board tiles are positioned relative to (0,0) in tile_container
+	# To center the board, we need to offset by the negative of the board's center point
+	var board_center_row := (current_level.height - 1) / 2.0
+	var board_center_col := (current_level.width - 1) / 2.0
 
-	print("[Game] Board positioned at: %v (layout-relative)" % tile_container.global_position)
+	# Convert board center to screen coordinates
+	# Mobile-first: 64x64 square tiles (not isometric)
+	# Visual scale is (0.135, 0.275) applied to 474x233 sprite = 64x64 on screen
+	var tile_size := 64.0
+	var board_center_x := board_center_col * tile_size
+	var board_center_y := board_center_row * tile_size
+	var board_visual_center := Vector2(board_center_x, board_center_y)
+
+	# Position tile_container so that the board's visual center aligns with anchor center
+	# We subtract the board's visual center to shift it to the anchor center
+	tile_container.global_position = anchor_center - board_visual_center
+
+	# MONUMENT VALLEY SOLUTION: Scale board based on orientation
+	# Mobile-first approach (720x1080 portrait is base)
+	# Portrait: 1.0x (normal size - optimized for mobile)
+	# Landscape: 0.9x (slightly smaller to fit horizontal orientation)
+	var board_scale: float = 0.9 if not is_portrait else 1.0
+	tile_container.scale = Vector2(board_scale, board_scale)
+	overlay.scale = Vector2(board_scale, board_scale)
+
+	print("[Game] Board positioning debug:")
+	print("  Orientation: %s" % ("Portrait" if is_portrait else "Landscape"))
+	print("  Board size: %dx%d" % [current_level.width, current_level.height])
+	print("  Board scale: %.1fx" % board_scale)
+	print("  Board visual center offset: %v" % board_visual_center)
+	print("  Viewport size: %v" % get_viewport().get_visible_rect().size)
+	print("  BoardAnchor global_pos: %v" % anchor_global_pos)
+	print("  BoardAnchor size: %v" % anchor_size)
+	print("  Anchor center: %v" % anchor_center)
+	print("  Tile container positioned at: %v (centered)" % tile_container.global_position)
 
 ## Handle orientation changes (portrait <-> landscape)
 ## Re-positions board when layout switches at runtime

@@ -233,8 +233,8 @@ static func create_level_endless() -> LevelData:
 	level.target_score = 0  # No target
 	level.squares_goal = 999999  # Infinite
 
-	# Generate validated grid
-	level.starting_grid = _generate_validated_grid(4, 4, 3, 10, 1)
+	# Generate validated grid (must match width x height)
+	level.starting_grid = _generate_validated_grid(5, 5, 3, 10, 1)
 
 	# Full cascade mode
 	level.lock_on_match = true
@@ -408,9 +408,18 @@ static func _get_level_2_grid() -> Array:
 		print("[Level 2] Generated using HYBRID method (template + noise)")
 		return generated
 
-	# Method 2: Fallback to pure procedural generation
-	print("[Level 2] Hybrid failed, using PROCEDURAL generation")
-	return _generate_validated_grid(5, 5, 3, 10, 2)
+	# Method 2: Fallback to using template directly (apply reverse moves)
+	print("[Level 2] Hybrid failed, using TEMPLATE REVERSAL method")
+	var goal_grid: Array = template["goal"]
+	var grid_from_template := _copy_grid(goal_grid)
+
+	# Apply moves in reverse order to get starting grid
+	var moves: Array = template["moves"]
+	for i in range(moves.size() - 1, -1, -1):
+		var move: Dictionary = moves[i]
+		_swap_cells(grid_from_template, move["from"], move["to"])
+
+	return grid_from_template
 
 
 # ========================================================================

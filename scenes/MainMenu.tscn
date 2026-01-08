@@ -18,12 +18,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -150.0
-offset_top = -120.0
-offset_right = 150.0
-offset_bottom = 120.0
+offset_left = -300.0
+offset_top = -240.0
+offset_right = 300.0
+offset_bottom = 240.0
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(1.5, 1.5)
 theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="VBoxContainer"]
@@ -59,6 +60,10 @@ text = "NEXT >"
 [node name="RestartBtn" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "RESTART (Level 1)"
+
+[node name="EndlessBtn" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "ENDLESS MODE"
 
 [node name="Spacer2" type="Control" parent="VBoxContainer"]
 custom_minimum_size = Vector2(0, 10)

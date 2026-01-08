@@ -12,14 +12,16 @@
 script = ExtResource("1_cpr0p")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(960, 540)
-zoom = Vector2(1.47, 1.47)
+position = Vector2(360, 540)
+zoom = Vector2(1.33, 1.33)
 
 [node name="LayoutManager" type="Node" parent="."]
 script = ExtResource("4_layout")
 
 [node name="PortraitLayout" parent="LayoutManager" instance=ExtResource("5_portrait")]
 visible = false
+offset_right = -840.0
+offset_bottom = 840.0
 
 [node name="LandscapeLayout" parent="LayoutManager" instance=ExtResource("6_landscape")]
 

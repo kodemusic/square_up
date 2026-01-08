@@ -45,8 +45,16 @@ func _ready() -> void:
 
 ## Detect orientation based on viewport aspect ratio and apply layout
 func _detect_and_apply_orientation() -> void:
+	# Use window size for orientation detection (not viewport size)
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
-	var aspect_ratio: float = viewport_size.x / viewport_size.y
+	var window_size: Vector2 = DisplayServer.window_get_size()
+	var aspect_ratio: float = window_size.x / window_size.y
+
+	# Debug output
+	print("[LayoutManager] Orientation detection:")
+	print("  Viewport size: %v" % viewport_size)
+	print("  Window size: %v" % window_size)
+	print("  Aspect ratio: %.2f" % aspect_ratio)
 
 	# Portrait if height > width (aspect ratio < 1.0)
 	var portrait_mode: bool = aspect_ratio < 1.0

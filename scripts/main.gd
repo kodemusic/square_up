@@ -20,9 +20,13 @@ var player_progress := {
 }
 
 func _ready() -> void:
+	# Initialize random number generator with unique seed
+	randomize()
+	print("Random seed initialized: %d" % randi())
+
 	# Detect platform and adjust stretch scale
 	_configure_stretch_scale()
-	
+
 	# Load saved progress on startup
 	load_progress()
 

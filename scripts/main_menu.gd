@@ -12,6 +12,7 @@ const MAX_LEVEL := 2
 @onready var prev_button := $VBoxContainer/LevelNav/PrevBtn as Button
 @onready var next_button := $VBoxContainer/LevelNav/NextBtn as Button
 @onready var restart_button := $VBoxContainer/RestartBtn as Button
+@onready var endless_button := $VBoxContainer/EndlessBtn as Button
 @onready var quit_button := $VBoxContainer/QuitBtn as Button
 
 ## Current selected level
@@ -28,6 +29,7 @@ func _ready() -> void:
 	prev_button.pressed.connect(_on_prev_pressed)
 	next_button.pressed.connect(_on_next_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
+	endless_button.pressed.connect(_on_endless_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 	
 	# Focus play button for keyboard navigation
@@ -60,6 +62,15 @@ func _on_restart_pressed() -> void:
 	# Reset to level 1
 	selected_level = 1
 	_update_ui()
+
+func _on_endless_pressed() -> void:
+	# Load endless mode (level 999)
+	if has_node("/root/GameManager"):
+		var gm = get_node("/root/GameManager")
+		gm.load_endless_mode()
+	else:
+		# Fallback: set test level to endless and load game
+		get_tree().change_scene_to_file("res://scenes/Game.tscn")
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
