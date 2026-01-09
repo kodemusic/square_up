@@ -31,6 +31,8 @@ var locked := false
 var highlighted := false
 ## Container node holding all height stack slices
 var slices_root: Node2D
+## Track which touch index is active (prevents multi-touch issues)
+var active_touch := -1
 
 func _ready() -> void:
 	# Initialize the tile's visual appearance on spawn
@@ -39,19 +41,33 @@ func _ready() -> void:
 	_update_color()  # Apply color first
 	_update_visual()  # Then apply state tinting
 
-func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> void:
+func _input_event(viewport: Viewport, event: InputEvent, _shape_idx: int) -> void:
 	# Ignore input if tile is locked (already matched)
 	if locked:
 		return
 	
-	# Handle both desktop clicks and mobile touches
-	# GODOT 4 TOUCH FIX: Check for button_index on mouse events to prevent double-trigger
+	# Handle desktop clicks
 	if event is InputEventMouseButton:
 		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			tapped.emit(self)
+			viewport.set_input_as_handled()
+		return
+	
+	# Handle mobile touches with proper multi-touch tracking
 	elif event is InputEventScreenTouch:
 		if event.pressed:
+			# Ignore if another touch is already active on this tile
+			if active_touch != -1 and event.index != active_touch:
+				return
+			active_touch = event.index
 			tapped.emit(self)
+			viewport.set_input_as_handled()
+		else:
+			# Release touch tracking when finger is lifted
+			if event.index == active_touch:
+				active_touch = -1
+			viewport.set_input_as_handled()
+		return
 
 ## Lock or unlock this tile (locked tiles can't be swapped)
 func set_locked(value: bool) -> void:

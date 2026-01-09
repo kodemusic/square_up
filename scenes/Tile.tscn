@@ -1,21 +1,15 @@
-[gd_scene load_steps=5 format=3 uid="uid://rnodqd56bedi"]
+[gd_scene load_steps=4 format=3 uid="uid://rnodqd56bedi"]
 
 [ext_resource type="Script" uid="uid://nmqg5861vslg" path="res://scripts/tile.gd" id="1_vhibn"]
 [ext_resource type="Texture2D" uid="uid://cwlv0bgkfl3w6" path="res://assets/cube_base2.png" id="2_r3gf4"]
 [ext_resource type="PackedScene" uid="uid://b4epd3e4xtml6" path="res://scenes/stacked_root.tscn" id="2_rvdvl"]
-[ext_resource type="PackedScene" uid="uid://bdvhlajeu3son" path="res://scenes/base_playfield.tscn" id="4_rvdvl"]
 
 [node name="Tile" type="Area2D"]
-input_pickable = true
 script = ExtResource("1_vhibn")
 color_id = 1
 slice_scene = ExtResource("2_rvdvl")
 
 [node name="Anim" type="AnimationPlayer" parent="."]
-
-[node name="base_playfield" parent="." instance=ExtResource("4_rvdvl")]
-position = Vector2(1, 48)
-scale = Vector2(1, 0.421)
 
 [node name="HeightStack" type="Node2D" parent="."]
 position = Vector2(2, 42.000004)
@@ -35,4 +29,4 @@ texture = ExtResource("2_r3gf4")
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
 position = Vector2(-0.099998474, 11.200001)
-polygon = PackedVector2Array(1.0999985, -11.200001, 31.099998, -4.200001, 2.0999985, 5.799999, -27.900002, -1.2000008)
+polygon = PackedVector2Array(0.099998474, -11.200001, 30.099998, -4.200001, 1.0999985, 7.799999, -28.900002, -1.2000008)

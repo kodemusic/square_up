@@ -6,7 +6,7 @@
 script = ExtResource("1_78nn4")
 
 [node name="BoardController" type="Node2D" parent="."]
-scale = Vector2(1.85, 1.85)
+scale = Vector2(1.9, 1.9)
 
 [node name="TileContainer" type="Node2D" parent="BoardController"]
 

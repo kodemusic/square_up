@@ -406,30 +406,52 @@ func _apply_gravity() -> void:
 	const TILE_HEIGHT := 32.0
 	const HEIGHT_STEP := 8.0
 
+	# Freeze input during gravity
+	set_input_enabled(false)
+
 	var moves: Array[Dictionary] = board.apply_gravity()
+	if moves.is_empty():
+		set_input_enabled(true)
+		return
 
-	# Animate tiles dropping
+	# 1) Snapshot: map original positions -> tile nodes BEFORE changing any grid_pos
+	var tiles_by_pos: Dictionary = {}
+	for child in tile_container.get_children():
+		if child is Area2D:
+			var t := child as Area2D
+			tiles_by_pos[t.grid_pos] = t
+
+	# 2) Animate all moves using the snapshot map
+	var tweens: Array[Tween] = []
+
 	for move in moves:
-		var tile := _find_tile_at_grid_pos(move["from"])
-		if tile != null:
-			var target_pos: Vector2 = board.grid_to_iso(
-				move["to"].y, move["to"].x, 0,
-				TILE_WIDTH, TILE_HEIGHT, HEIGHT_STEP
-			)
+		var from_pos: Vector2i = move["from"]
+		var to_pos: Vector2i = move["to"]
 
-			var tween := create_tween()
-			tween.tween_property(tile, "position", target_pos, 0.3)\
-				 .set_trans(Tween.TRANS_BOUNCE)\
-				 .set_ease(Tween.EASE_OUT)
+		var tile: Area2D = tiles_by_pos.get(from_pos, null)
+		if tile == null:
+			continue
 
-			# Update tile's grid position
-			tile.grid_pos = move["to"]
+		var target_pos: Vector2 = board.grid_to_iso(
+			to_pos.y, to_pos.x, 0,
+			TILE_WIDTH, TILE_HEIGHT, HEIGHT_STEP
+		)
 
-			# Update z-index for new position
-			tile.z_index = move["to"].y + move["to"].x
+		var tween := create_tween()
+		tween.tween_property(tile, "position", target_pos, 0.3)\
+			.set_trans(Tween.TRANS_BOUNCE)\
+			.set_ease(Tween.EASE_OUT)
+		tweens.append(tween)
 
-	# Wait for all drops to complete
-	await get_tree().create_timer(0.35).timeout
+		# Update grid_pos AFTER we grabbed the tile from the snapshot
+		tile.grid_pos = to_pos
+		tile.z_index = to_pos.y + to_pos.x
+
+	# 3) Wait for all tweens to finish (better than timers)
+	for t in tweens:
+		await t.finished
+
+	set_input_enabled(true)
 
 ## Refill board with new tiles spawning from above
 func _refill_board() -> void:
