@@ -137,11 +137,17 @@ func _on_tile_tapped(tile: Area2D) -> void:
 		_deselect_tile()
 	else:
 		print("Swap failed - invalid move")
+		# Freeze input so taps can't interfere during animation
+		set_input_enabled(false)
+
 		# Animate invalid swap: swap then swap back
 		await _animate_invalid_swap(tile_a, tile_b)
+		
 		# Deselect current and select the new tile instead
 		_deselect_tile()
-		_select_tile(tile)
+		# Re-enable input
+		set_input_enabled(true)
+		# _select_tile(tile)
 
 ## Select a tile and highlight it
 func _select_tile(tile: Area2D) -> void:
@@ -359,6 +365,10 @@ func _animate_invalid_swap(tile_a: Area2D, tile_b: Area2D) -> void:
 		  .set_ease(Tween.EASE_OUT)
 
 	await back_a.finished
+
+		# 🔑 FINAL CLEANUP — put it HERE
+	tile_a.set_highlighted(false)
+	tile_b.set_highlighted(false)
 
 ## Clear locked squares with fade out animation
 ## Also removes tile visuals from scene

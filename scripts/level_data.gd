@@ -433,8 +433,12 @@ static func _generate_validated_grid(rows: int, cols: int, color_count: int, max
 		# Generate a random grid with no 2x2 matches
 		var grid := generate_grid_no_squares(rows, cols, color_count)
 
+		# Create default rules for validation (no cascades)
+		var rules := BoardRules.Rules.new()
+		rules.num_colors = color_count
+
 		# Validate using solver
-		var validation := Solver.validate_level(grid, max_moves, min_solution_depth)
+		var validation := Solver.validate_level(grid, max_moves, rules, min_solution_depth)
 
 		if validation["valid"]:
 			if OS.is_debug_build():

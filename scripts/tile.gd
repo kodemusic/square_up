@@ -46,27 +46,19 @@ func _input_event(viewport: Viewport, event: InputEvent, _shape_idx: int) -> voi
 	if locked:
 		return
 	
-	# Handle desktop clicks
-	if event is InputEventMouseButton:
-		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	var is_mobile := OS.has_feature("mobile")
+	
+	# On mobile: accept ONLY real touch events
+	if is_mobile:
+		if event is InputEventScreenTouch and event.pressed:
 			tapped.emit(self)
 			viewport.set_input_as_handled()
 		return
 	
-	# Handle mobile touches with proper multi-touch tracking
-	elif event is InputEventScreenTouch:
-		if event.pressed:
-			# Ignore if another touch is already active on this tile
-			if active_touch != -1 and event.index != active_touch:
-				return
-			active_touch = event.index
-			tapped.emit(self)
-			viewport.set_input_as_handled()
-		else:
-			# Release touch tracking when finger is lifted
-			if event.index == active_touch:
-				active_touch = -1
-			viewport.set_input_as_handled()
+	# On desktop: accept ONLY mouse clicks
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		tapped.emit(self)
+		viewport.set_input_as_handled()
 		return
 
 ## Lock or unlock this tile (locked tiles can't be swapped)

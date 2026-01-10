@@ -18,6 +18,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 80.0
 grow_horizontal = 2
+mouse_filter = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
@@ -25,14 +26,17 @@ theme_override_constants/margin_bottom = 8
 
 [node name="TopBar" type="HBoxContainer" parent="TopBarMargin"]
 layout_mode = 2
+mouse_filter = 2
 alignment = 1
 
 [node name="ScoreBox" type="PanelContainer" parent="TopBarMargin/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 
 [node name="VBox" type="VBoxContainer" parent="TopBarMargin/TopBar/ScoreBox"]
 layout_mode = 2
+mouse_filter = 2
 
 [node name="Label" type="Label" parent="TopBarMargin/TopBar/ScoreBox/VBox"]
 layout_mode = 2
@@ -98,15 +102,14 @@ offset_right = 200.0
 offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 0
 
 [node name="Panel" type="PanelContainer" parent="CenterBanner"]
 layout_mode = 2
-mouse_filter = 2
 
 [node name="VBox" type="VBoxContainer" parent="CenterBanner/Panel"]
 layout_mode = 2
-mouse_filter = 2
+mouse_filter = 0
 
 [node name="BannerTitle" type="Label" parent="CenterBanner/Panel/VBox"]
 layout_mode = 2
@@ -121,7 +124,7 @@ horizontal_alignment = 1
 
 [node name="ButtonContainer" type="HBoxContainer" parent="CenterBanner/Panel/VBox"]
 layout_mode = 2
-mouse_filter = 2
+mouse_filter = 0
 alignment = 1
 
 [node name="RetryButton" type="Button" parent="CenterBanner/Panel/VBox/ButtonContainer"]
@@ -145,6 +148,7 @@ anchor_bottom = 1.0
 offset_top = -80.0
 grow_horizontal = 2
 grow_vertical = 0
+mouse_filter = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 16
@@ -152,6 +156,7 @@ theme_override_constants/margin_bottom = 16
 
 [node name="BottomBar" type="HBoxContainer" parent="BottomBarMargin"]
 layout_mode = 2
+mouse_filter = 2
 alignment = 1
 
 [node name="UndoButton" type="Button" parent="BottomBarMargin/BottomBar"]
@@ -174,12 +179,14 @@ offset_right = 150.0
 offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
 
 [node name="Panel" type="PanelContainer" parent="SquareUpPopup"]
 layout_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="SquareUpPopup/Panel"]
 layout_mode = 2
+mouse_filter = 0
 
 [node name="PopupText" type="Label" parent="SquareUpPopup/Panel/VBox"]
 layout_mode = 2
@@ -197,6 +204,7 @@ horizontal_alignment = 1
 layer = -10
 
 [node name="ColorRect" type="ColorRect" parent="CanvasLayer"]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -206,4 +214,4 @@ grow_horizontal = 2
 grow_vertical = 2
 scale = Vector2(0.95505106, 0.96415323)
 mouse_filter = 2
-color = Color(0.50302523, 0.79360104, 0.7924357, 1)
+color = Color(0.5294118, 0.8039216, 0.87058824, 0.98039216)
