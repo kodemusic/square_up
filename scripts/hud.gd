@@ -12,6 +12,9 @@ signal undo_requested
 ## Emitted when user wants to go to next level
 signal next_level_requested
 
+## Emitted when user wants to shuffle the board (endless mode only)
+signal shuffle_requested
+
 ## Current game score
 var current_score := 0
 
@@ -40,6 +43,9 @@ var squares_goal := 0
 @onready var retry_button := get_node("CenterBanner/Panel/VBox/ButtonContainer/RetryButton") as Button
 @onready var next_level_button := get_node("CenterBanner/Panel/VBox/ButtonContainer/NextLevelButton") as Button
 @onready var undo_button := get_node("BottomBarMargin/BottomBar/UndoButton") as Button
+@onready var shuffle_popup := get_node("SufflePopUp") as CenterContainer
+@onready var shuffle_message := get_node("SufflePopUp/Panel/VBox/BannerMessage") as Label
+@onready var shuffle_button := get_node("SufflePopUp/Panel/VBox/ButtonContainer/NextLevelButton") as Button
 
 ## Whether undo has been used this level (only 1 undo per level for now)
 var undo_used := false
@@ -69,6 +75,11 @@ func _ready() -> void:
 		undo_button.pressed.connect(_on_undo_pressed)
 	else:
 		push_error("HUD: undo_button not found at path BottomBarMargin/BottomBar/UndoButton")
+
+	if shuffle_button:
+		shuffle_button.pressed.connect(_on_shuffle_pressed)
+	else:
+		push_error("HUD: shuffle_button not found at path SufflePopUp/Panel/VBox/ButtonContainer/NextLevelButton")
 
 	# Initialize display
 	update_score(0)
@@ -161,6 +172,37 @@ func show_banner(title: String, message: String = "") -> void:
 ## Hide the center banner
 func hide_banner() -> void:
 	banner.visible = false
+
+## Show shuffle popup (for endless mode dead boards)
+func show_shuffle_popup() -> void:
+	if shuffle_popup == null:
+		push_error("HUD: shuffle_popup not found")
+		return
+
+	shuffle_message.text = "No valid moves!\nShuffle the board?"
+
+	# Start above center, invisible
+	shuffle_popup.modulate = Color(1, 1, 1, 0)
+	shuffle_popup.position.y = -50
+	shuffle_popup.visible = true
+
+	# Slide in animation
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(shuffle_popup, "modulate:a", 1.0, 0.3)
+	tween.tween_property(shuffle_popup, "position:y", 0, 0.4)\
+		 .set_trans(Tween.TRANS_BACK)\
+		 .set_ease(Tween.EASE_OUT)
+
+## Hide shuffle popup
+func hide_shuffle_popup() -> void:
+	if shuffle_popup == null:
+		return
+
+	var tween := create_tween()
+	tween.tween_property(shuffle_popup, "modulate:a", 0.0, 0.2)
+	await tween.finished
+	shuffle_popup.visible = false
 
 ## Set the squares goal for the current level
 ## goal: Number of squares needed to complete level
@@ -257,6 +299,10 @@ func _on_next_level_pressed() -> void:
 func _on_undo_pressed() -> void:
 	if not undo_used:
 		emit_signal("undo_requested")
+
+func _on_shuffle_pressed() -> void:
+	hide_shuffle_popup()
+	emit_signal("shuffle_requested")
 
 ## Create the combo indicator label
 func _create_combo_label() -> void:

@@ -19,7 +19,8 @@ extends Node
 ## ========================================================================
 
 ## Emitted when orientation changes (portrait <-> landscape)
-signal orientation_changed(is_portrait: bool)
+## Parameters: is_portrait (bool), tall_ratio (float), is_very_tall (bool)
+signal orientation_changed(is_portrait: bool, tall_ratio: float, is_very_tall: bool)
 
 ## References to layout containers
 @onready var portrait_layout: Control = $PortraitLayout
@@ -27,6 +28,11 @@ signal orientation_changed(is_portrait: bool)
 
 ## Current orientation state
 var current_is_portrait: bool = false
+var current_tall_ratio: float = 1.0
+var current_is_very_tall: bool = false
+
+## Threshold for "very tall" screens (foldables, etc.)
+const VERY_TALL_THRESHOLD: float = 2.2
 
 ## Called when node enters scene tree
 func _ready() -> void:
@@ -48,22 +54,35 @@ func _detect_and_apply_orientation() -> void:
 	# Use window size for orientation detection (not viewport size)
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var window_size: Vector2 = DisplayServer.window_get_size()
-	var aspect_ratio: float = window_size.x / window_size.y
+
+	# Separate concerns: orientation vs tall-screen bias
+	var new_portrait_mode: bool = window_size.y > window_size.x
+	var new_tall_ratio: float = window_size.y / max(1.0, window_size.x)
+	var new_is_very_tall: bool = new_tall_ratio > VERY_TALL_THRESHOLD
 
 	# Debug output
 	print("[LayoutManager] Orientation detection:")
 	print("  Viewport size: %v" % viewport_size)
 	print("  Window size: %v" % window_size)
-	print("  Aspect ratio: %.2f" % aspect_ratio)
+	print("  Portrait mode: %s (height %s width)" % [new_portrait_mode, ">" if new_portrait_mode else "<="])
+	print("  Tall ratio: %.2f (height/width)" % new_tall_ratio)
+	print("  Very tall screen: %s (threshold: %.1f)" % [new_is_very_tall, VERY_TALL_THRESHOLD])
 
-	# Portrait if height > width (aspect ratio < 1.0)
-	var portrait_mode: bool = aspect_ratio < 1.0
+	# Check if any orientation property changed
+	var orientation_changed_flag := (
+		new_portrait_mode != current_is_portrait or
+		new_is_very_tall != current_is_very_tall
+	)
 
-	# Only switch if orientation actually changed
-	if portrait_mode != current_is_portrait:
-		current_is_portrait = portrait_mode
-		_switch_layout(portrait_mode)
-		orientation_changed.emit(portrait_mode)
+	# Update state
+	current_is_portrait = new_portrait_mode
+	current_tall_ratio = new_tall_ratio
+	current_is_very_tall = new_is_very_tall
+
+	# Only switch layout and emit if something changed
+	if orientation_changed_flag:
+		_switch_layout(new_portrait_mode)
+		orientation_changed.emit(new_portrait_mode, new_tall_ratio, new_is_very_tall)
 
 ## Switch between portrait and landscape layouts
 func _switch_layout(portrait_mode: bool) -> void:
@@ -86,6 +105,14 @@ func get_active_board_anchor() -> Control:
 ## Check if current orientation is portrait
 func is_portrait() -> bool:
 	return current_is_portrait
+
+## Get current tall ratio (height/width)
+func get_tall_ratio() -> float:
+	return current_tall_ratio
+
+## Check if current screen is very tall (foldables, etc.)
+func is_very_tall() -> bool:
+	return current_is_very_tall
 
 ## Handle viewport size changes (window resize)
 func _on_viewport_size_changed() -> void:

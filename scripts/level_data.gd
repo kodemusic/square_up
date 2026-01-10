@@ -180,7 +180,8 @@ static func create_level_1() -> LevelData:
 	
 	# Verify solvability in debug
 	if OS.is_debug_build():
-		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
+		var rules := BoardRules.Rules.from_level_data(level)
+		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit, rules)
 		print("[Level 1] Generated puzzle - solvable: %s" % str(can_solve))
 
 	# Tutorial mode: no cascade mechanics
@@ -192,14 +193,14 @@ static func create_level_1() -> LevelData:
 
 	return level
 
-## Level 2: Intermediate - Multi-move puzzle with 3 colors
+## Level 2: Intermediate - Multi-move puzzle with 2 colors
 static func create_level_2() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 2
-	level.level_name = "Three Colors"
+	level.level_name = "Two Colors"
 	level.width = 5
 	level.height = 5
-	level.num_colors = 3
+	level.num_colors = 2
 	level.move_limit = 0 # Unlimited
 	level.target_score = 20
 	level.squares_goal = 2
@@ -209,38 +210,33 @@ static func create_level_2() -> LevelData:
 	
 	# Verify solvability in debug
 	if OS.is_debug_build():
-		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
+		var rules := BoardRules.Rules.from_level_data(level)
+		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit, rules)
 		print("[Level 2] Generated puzzle - solvable: %s" % str(can_solve))
 
 	# Introduce full cascade mechanics: clear → gravity → refill → combo chains
 	# Player experiences the core satisfying gameplay loop
 	level.lock_on_match = true
-	level.clear_locked_squares = true
-	level.enable_gravity = true
-	level.refill_from_top = true
+	level.clear_locked_squares = false
+	level.enable_gravity = false
+	level.refill_from_top = false
 	
 	return level
 
-## Level 3: Advanced - 4 colors with cascades
+## Level 3: Advanced - 3 colors with cascades
 static func create_level_3() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 3
-	level.level_name = "Four Colors"
+	level.level_name = "Three Colors"
 	level.width = 5
 	level.height = 5
-	level.num_colors = 4
+	level.num_colors = 3
 	level.move_limit = 0  # Unlimited
 	level.target_score = 30
 	level.squares_goal = 3
 
-	# Handcrafted puzzle - validated with solver
-	level.starting_grid = [
-		[0, 1, 2, 3, 0],
-		[1, 0, 3, 2, 1],
-		[2, 3, 0, 1, 2],
-		[3, 2, 1, 0, 3],
-		[0, 1, 2, 3, 0]
-	]
+	# Generate random solvable grid with 3 colors (no invalid color 3)
+	level.starting_grid = generate_grid_no_squares(5, 5, 3)
 
 	# Verify solvability in debug
 	if OS.is_debug_build():
@@ -262,6 +258,50 @@ static func create_level_3() -> LevelData:
 
 	return level
 
+## Level 4: Height Tutorial - Teaches that height matters for matching
+## 4x4 grid, 2 colors, simple puzzle to introduce height concept
+static func create_level_4() -> LevelData:
+	var level := LevelData.new()
+	level.level_id = 4
+	level.level_name = "Height Matters"
+	level.width = 4
+	level.height = 4
+	level.num_colors = 2
+	level.move_limit = 0  # Unlimited
+	level.target_score = 10
+	level.squares_goal = 1
+
+	# Simple 1-move puzzle with 2 colors
+	# Player swaps to create a basic 2x2 match
+	level.starting_grid = [
+		[0, 0, 1, 1],
+		[0, 1, 1, 0],
+		[1, 0, 0, 1],
+		[1, 1, 0, 0]
+	]
+
+	# TODO: To fully teach height mechanic, need to:
+	# 1. Add initial_heights array to LevelData
+	# 2. Update board.gd load_level() to set tile heights from level data
+	# 3. Create a grid where some tiles start at height=2
+	# Example future grid with heights:
+	#   Colors: [[0,0,1,1], [0,1,1,0], ...]
+	#   Heights: [[1,2,1,1], [2,1,1,1], ...]  <- Some tiles start stacked
+
+	if OS.is_debug_build():
+		print("[Level 4] Height tutorial level (simplified)")
+		print("  Note: Full height mechanic requires board.gd updates")
+		print("  Current: Basic 2-color 1-move puzzle")
+
+	# Tutorial mode: no cascades (like Level 1)
+	# Focus is purely on basic matching
+	level.lock_on_match = false
+	level.clear_locked_squares = false
+	level.enable_gravity = false
+	level.refill_from_top = false
+
+	return level
+
 ## Endless Mode: Infinite gameplay with cascading mechanics
 static func create_level_endless() -> LevelData:
 	var level := LevelData.new()
@@ -274,8 +314,12 @@ static func create_level_endless() -> LevelData:
 	level.target_score = 0  # No target
 	level.squares_goal = 999999  # Infinite
 
-	# Generate validated grid (must match width x height)
-	level.starting_grid = _generate_validated_grid(5, 5, 3, 10, 1)
+	# For endless mode, use fast generation (no validation needed)
+	# Cascades make solvability less important
+	level.starting_grid = generate_grid_no_squares(5, 5, 3)
+
+	if OS.is_debug_build():
+		print("[Endless Mode] Generated grid (no validation)")
 
 	# Full cascade mode
 	level.lock_on_match = true
@@ -494,9 +538,11 @@ static func _generate_validated_grid(rows: int, cols: int, color_count: int, max
 
 	# Fallback: return any solvable grid
 	print("Warning: Could not generate optimal puzzle, using fast fallback")
+	var fallback_rules := BoardRules.Rules.new()
+	fallback_rules.num_colors = color_count
 	for _fallback in range(FALLBACK_ATTEMPTS):
 		var grid := generate_grid_no_squares(rows, cols, color_count)
-		if Solver.can_solve(grid, mini(max_moves, 5)):
+		if Solver.can_solve(grid, mini(max_moves, 5), fallback_rules):
 			return grid
 
 	# Ultimate fallback
@@ -571,7 +617,8 @@ static func create_from_rules(lvl_id: int, rules: LevelRules) -> LevelData:
 
 	# Debug: verify solvability
 	if OS.is_debug_build():
-		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit)
+		var solver_rules := BoardRules.Rules.from_level_data(level)
+		var can_solve := Solver.can_solve(level.starting_grid, level.move_limit, solver_rules)
 		print("[Level %d] Generated - solvable: %s" % [lvl_id, str(can_solve)])
 
 	return level
@@ -647,11 +694,13 @@ static func _generate_level_internal(id: int) -> LevelData:
 				return create_level_2()
 			3:
 				return create_level_3()
+			4:
+				return create_level_4()
 			999:
 				return create_level_endless()
 			# Add more handcrafted levels here:
-			# 4:
-			#     return create_level_4()
+			# 5:
+			#     return create_level_5()
 			_:
 				# No handcrafted level exists for this ID
 				push_error("Level %d does not have a handcrafted factory function" % id)

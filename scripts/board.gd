@@ -556,3 +556,162 @@ func _get_color_for_id(color_id: int) -> Color:
 		4: return Color.PURPLE
 		5: return Color.ORANGE
 		_: return Color.WHITE
+
+## ========================================================================
+## DEAD BOARD DETECTION & SHUFFLE (for endless mode)
+## ========================================================================
+
+## Check if there are any valid swaps that would create a match
+## Returns true if at least one valid move exists
+func has_valid_moves() -> bool:
+	# Check all possible adjacent swaps
+	for y in range(height):
+		for x in range(width):
+			var pos := Vector2i(x, y)
+
+			# Try horizontal swap (right)
+			if x < width - 1:
+				var right := Vector2i(x + 1, y)
+				if _would_swap_create_match(pos, right):
+					return true
+
+			# Try vertical swap (down)
+			if y < height - 1:
+				var down := Vector2i(x, y + 1)
+				if _would_swap_create_match(pos, down):
+					return true
+
+	return false
+
+## Check if swapping two tiles would create at least one 2×2 match
+## Does NOT actually perform the swap
+func _would_swap_create_match(a: Vector2i, b: Vector2i) -> bool:
+	# Can't swap if basic conditions fail
+	if not _can_swap(a, b):
+		return false
+
+	# Temporarily swap in memory
+	var cell_a: Dictionary = board[a.y][a.x]
+	var cell_b: Dictionary = board[b.y][b.x]
+	var temp_color: int = cell_a["color"]
+	cell_a["color"] = cell_b["color"]
+	cell_b["color"] = temp_color
+
+	# Check if either position now creates a match
+	var creates_match := (
+		_would_form_2x2_at(a) or
+		_would_form_2x2_at(b)
+	)
+
+	# Swap back
+	temp_color = cell_a["color"]
+	cell_a["color"] = cell_b["color"]
+	cell_b["color"] = temp_color
+
+	return creates_match
+
+## Check if a position would be part of a 2×2 match (after a hypothetical swap)
+## Checks all 4 possible 2×2 squares that could include this position
+func _would_form_2x2_at(pos: Vector2i) -> bool:
+	# Check all 4 possible 2×2 squares that include this position
+	# Top-left corner
+	if _is_valid_2x2_at(Vector2i(pos.x, pos.y)):
+		return true
+	# Top-right corner (this pos is at x+1)
+	if pos.x > 0 and _is_valid_2x2_at(Vector2i(pos.x - 1, pos.y)):
+		return true
+	# Bottom-left corner (this pos is at y+1)
+	if pos.y > 0 and _is_valid_2x2_at(Vector2i(pos.x, pos.y - 1)):
+		return true
+	# Bottom-right corner (this pos is at x+1, y+1)
+	if pos.x > 0 and pos.y > 0 and _is_valid_2x2_at(Vector2i(pos.x - 1, pos.y - 1)):
+		return true
+
+	return false
+
+## Check if there's a valid 2×2 match at the given top-left position
+func _is_valid_2x2_at(top_left: Vector2i) -> bool:
+	var x := top_left.x
+	var y := top_left.y
+
+	# Check bounds
+	if x < 0 or y < 0 or x >= width - 1 or y >= height - 1:
+		return false
+
+	# Get all four cells
+	var c0: Dictionary = board[y][x]
+	var c1: Dictionary = board[y][x + 1]
+	var c2: Dictionary = board[y + 1][x]
+	var c3: Dictionary = board[y + 1][x + 1]
+
+	# Check if all have same color (and not empty)
+	if c0["color"] == COLOR_NONE:
+		return false
+	if c0["color"] != c1["color"] or c0["color"] != c2["color"] or c0["color"] != c3["color"]:
+		return false
+
+	# Check if all have same height
+	if c0["height"] != c1["height"] or c0["height"] != c2["height"] or c0["height"] != c3["height"]:
+		return false
+
+	# Check if all are in normal state (not locked or clearing)
+	if c0["state"] != STATE_NORMAL or c1["state"] != STATE_NORMAL:
+		return false
+	if c2["state"] != STATE_NORMAL or c3["state"] != STATE_NORMAL:
+		return false
+
+	return true
+
+## Check if board has any empty cells
+func has_empty_cells() -> bool:
+	for y in range(height):
+		for x in range(width):
+			if board[y][x]["color"] == COLOR_NONE:
+				return true
+	return false
+
+## Shuffle the board (Fisher-Yates shuffle of non-empty tiles)
+## Keeps tiles in their grid positions but randomizes colors
+func shuffle_board() -> void:
+	# Collect all non-empty tile colors
+	var colors: Array[int] = []
+	for y in range(height):
+		for x in range(width):
+			var cell: Dictionary = board[y][x]
+			if cell["color"] != COLOR_NONE and cell["state"] == STATE_NORMAL:
+				colors.append(cell["color"])
+
+	# Fisher-Yates shuffle
+	for i in range(colors.size() - 1, 0, -1):
+		var j := randi() % (i + 1)
+		var temp := colors[i]
+		colors[i] = colors[j]
+		colors[j] = temp
+
+	# Redistribute shuffled colors back to board
+	var color_index := 0
+	for y in range(height):
+		for x in range(width):
+			var cell: Dictionary = board[y][x]
+			if cell["color"] != COLOR_NONE and cell["state"] == STATE_NORMAL:
+				cell["color"] = colors[color_index]
+				color_index += 1
+
+	# Update visual tiles
+	_update_all_tile_visuals()
+
+## Update all tile visuals to match board state
+func _update_all_tile_visuals() -> void:
+	if tile_container == null:
+		return
+
+	for y in range(height):
+		for x in range(width):
+			var tile_name := "Tile_%d_%d" % [x, y]
+			var tile := tile_container.get_node_or_null(tile_name)
+			if tile != null:
+				var cell: Dictionary = board[y][x]
+				tile.color_id = cell["color"]
+				# Force visual update
+				if tile.has_method("update_color"):
+					tile.update_color()

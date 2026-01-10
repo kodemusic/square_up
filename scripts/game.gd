@@ -109,6 +109,7 @@ func _ready() -> void:
 	hud.restart_requested.connect(_on_restart_requested)
 	hud.next_level_requested.connect(_on_next_level_requested)
 	hud.undo_requested.connect(_on_undo_requested)
+	hud.shuffle_requested.connect(_on_shuffle_requested)
 
 	# Initialize HUD with level data
 	hud.set_move_limit(current_level.move_limit)
@@ -141,6 +142,10 @@ func _on_swap_completed() -> void:
 		var current_score: int = hud.current_score
 		if current_score < current_level.target_score:
 			_on_level_failed()
+
+	# Check for dead board (endless mode only)
+	await get_tree().create_timer(0.5).timeout  # Wait for cascades to finish
+	_check_for_dead_board()
 
 ## Called when player completes level
 func _on_level_complete() -> void:
@@ -226,6 +231,33 @@ func _on_undo_completed() -> void:
 	if moves_count > 0:
 		moves_count -= 1
 		hud.update_moves(moves_count)
+
+func _on_shuffle_requested() -> void:
+	print("[Game] Shuffle requested")
+	board.shuffle_board()
+	# Re-check after shuffle in case it's still dead
+	await get_tree().create_timer(0.3).timeout
+	_check_for_dead_board()
+
+## Check if board has no valid moves (for endless mode)
+func _check_for_dead_board() -> void:
+	# Only check in endless mode (level 999)
+	if current_level.level_id != 999:
+		return
+
+	# Don't check if there are empty cells (cascades still happening)
+	if board.has_empty_cells():
+		return
+
+	# Don't check if there are existing matches on the board
+	var existing_matches: Array[Vector2i] = board.find_all_2x2_matches()
+	if existing_matches.size() > 0:
+		return
+
+	# Check for valid moves
+	if not board.has_valid_moves():
+		print("[Game] Dead board detected - showing shuffle popup")
+		hud.show_shuffle_popup()
 
 ## Pre-generate the next level in background to prevent lag
 ## Includes artistic delay to mask generation time
@@ -357,6 +389,9 @@ func _position_board_in_layout() -> void:
 
 ## Handle orientation changes (portrait <-> landscape)
 ## Re-positions board when layout switches at runtime
-func _on_orientation_changed(is_portrait: bool) -> void:
-	print("[Game] Orientation changed: %s" % ("Portrait" if is_portrait else "Landscape"))
+func _on_orientation_changed(is_portrait: bool, tall_ratio: float, is_very_tall: bool) -> void:
+	print("[Game] Orientation changed:")
+	print("  Mode: %s" % ("Portrait" if is_portrait else "Landscape"))
+	print("  Tall ratio: %.2f" % tall_ratio)
+	print("  Very tall screen: %s" % is_very_tall)
 	_position_board_in_layout()
