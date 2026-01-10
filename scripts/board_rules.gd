@@ -287,6 +287,11 @@ static func resolve(
 		apply_square_resolution(result.final_state, squares, rules)
 		result.add_event("squares_resolved", {"count": squares.size()})
 
+		# If tiles aren't locked or cleared, board won't change - exit now
+		if not rules.lock_on_match and not rules.clear_locked_squares:
+			result.stable = true
+			break
+
 		# Apply gravity if enabled
 		if rules.enable_gravity:
 			var gravity_moves := apply_gravity(result.final_state)

@@ -221,6 +221,47 @@ static func create_level_2() -> LevelData:
 	
 	return level
 
+## Level 3: Advanced - 4 colors with cascades
+static func create_level_3() -> LevelData:
+	var level := LevelData.new()
+	level.level_id = 3
+	level.level_name = "Four Colors"
+	level.width = 5
+	level.height = 5
+	level.num_colors = 4
+	level.move_limit = 0  # Unlimited
+	level.target_score = 30
+	level.squares_goal = 3
+
+	# Handcrafted puzzle - validated with solver
+	level.starting_grid = [
+		[0, 1, 2, 3, 0],
+		[1, 0, 3, 2, 1],
+		[2, 3, 0, 1, 2],
+		[3, 2, 1, 0, 3],
+		[0, 1, 2, 3, 0]
+	]
+
+	# Verify solvability in debug
+	if OS.is_debug_build():
+		var rules := BoardRules.Rules.from_level_data(level)
+		var validation := Solver.validate_level(level.starting_grid, 10, rules, 1, 2, level.squares_goal)
+		print("[Level 3] Validation:")
+		print("  Valid: %s" % validation["valid"])
+		print("  Solvable: %s" % validation["solvable"])
+		print("  Initial valid moves: %d" % validation["initial_valid_moves"])
+		print("  Shortest solution: %d moves" % validation["shortest_solution"])
+		if not validation["valid"]:
+			push_warning("[Level 3] Validation errors: %s" % validation["errors"])
+
+	# Full cascade mechanics enabled
+	level.lock_on_match = true
+	level.clear_locked_squares = true
+	level.enable_gravity = true
+	level.refill_from_top = true
+
+	return level
+
 ## Endless Mode: Infinite gameplay with cascading mechanics
 static func create_level_endless() -> LevelData:
 	var level := LevelData.new()
@@ -604,11 +645,11 @@ static func _generate_level_internal(id: int) -> LevelData:
 				return create_level_1()
 			2:
 				return create_level_2()
+			3:
+				return create_level_3()
 			999:
 				return create_level_endless()
 			# Add more handcrafted levels here:
-			# 3:
-			#     return create_level_3()
 			# 4:
 			#     return create_level_4()
 			_:
