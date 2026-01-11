@@ -39,6 +39,11 @@ static var test_level_id: int = 1
 
 ## Load a level by its ID
 func _load_level_by_id(level_id: int) -> LevelData:
+	# Clear cache before loading to ensure fresh level config
+	# (Useful when level definitions change during development)
+	if OS.is_debug_build():
+		LevelData.clear_cache()
+	
 	# Use the centralized factory function
 	return LevelData.create_level(level_id)
 
@@ -110,6 +115,10 @@ func _ready() -> void:
 	hud.next_level_requested.connect(_on_next_level_requested)
 	hud.undo_requested.connect(_on_undo_requested)
 	hud.shuffle_requested.connect(_on_shuffle_requested)
+
+	# Reset game state for new level
+	moves_count = 0
+	input_router.set_input_enabled(true)
 
 	# Initialize HUD with level data
 	hud.set_move_limit(current_level.move_limit)

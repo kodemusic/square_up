@@ -30,6 +30,9 @@ static var level_cache: Dictionary = {}  # level_id -> LevelData
 static var auto_generate: bool = true    # Auto-generate on create_level() call?
 static var prefer_handcrafted: bool = true  # Use handcrafted levels when available (default: true)
 
+## Enable/disable caching in debug mode (set to false to always regenerate levels)
+static var enable_debug_cache: bool = true  # Default: enabled for normal play
+
 # ========================================================================
 # INSTANCE PROPERTIES
 # ========================================================================
@@ -46,6 +49,7 @@ var width: int = DEFAULT_WIDTH
 var height: int = DEFAULT_HEIGHT
 var num_colors: int = DEFAULT_COLORS
 var starting_grid: Array = []  # [y][x] -> color_id (2D array)
+var initial_heights: Array = []  # [y][x] -> height (2D array, optional)
 
 ## Solution data (optional, for reverse-solving)
 var solution_moves: Array[Dictionary] = []  # [{from: Vector2i, to: Vector2i}]
@@ -217,9 +221,9 @@ static func create_level_2() -> LevelData:
 	# Introduce full cascade mechanics: clear → gravity → refill → combo chains
 	# Player experiences the core satisfying gameplay loop
 	level.lock_on_match = true
-	level.clear_locked_squares = false
-	level.enable_gravity = false
-	level.refill_from_top = false
+	level.clear_locked_squares = true
+	level.enable_gravity = true
+	level.refill_from_top = true
 	
 	return level
 
@@ -259,7 +263,7 @@ static func create_level_3() -> LevelData:
 	return level
 
 ## Level 4: Height Tutorial - Teaches that height matters for matching
-## 4x4 grid, 2 colors, simple puzzle to introduce height concept
+## 4x4 grid, 2 colors, demonstrates that only tiles of same height can match
 static func create_level_4() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 4
@@ -271,30 +275,32 @@ static func create_level_4() -> LevelData:
 	level.target_score = 10
 	level.squares_goal = 1
 
-	# Simple 1-move puzzle with 2 colors
-	# Player swaps to create a basic 2x2 match
+	# Color grid: Create a 2x2 red square (color 0) that CAN match
+	# But the key lesson: some tiles have different heights
 	level.starting_grid = [
-		[0, 0, 1, 1],
+		[0, 0, 1, 1],  # Top-left: Red square (but one tile is taller!)
 		[0, 1, 1, 0],
-		[1, 0, 0, 1],
-		[1, 1, 0, 0]
+		[1, 1, 0, 0],
+		[1, 0, 0, 1]
 	]
 
-	# TODO: To fully teach height mechanic, need to:
-	# 1. Add initial_heights array to LevelData
-	# 2. Update board.gd load_level() to set tile heights from level data
-	# 3. Create a grid where some tiles start at height=2
-	# Example future grid with heights:
-	#   Colors: [[0,0,1,1], [0,1,1,0], ...]
-	#   Heights: [[1,2,1,1], [2,1,1,1], ...]  <- Some tiles start stacked
+	# Height grid: One tile in top-left is height=2, preventing the match
+	# Player must swap to create a 2x2 match with matching heights
+	level.initial_heights = [
+		[1, 2, 1, 1],  # Second tile (0,1) is stacked higher
+		[1, 1, 1, 1],
+		[1, 1, 1, 1],
+		[1, 1, 1, 1]
+	]
 
 	if OS.is_debug_build():
-		print("[Level 4] Height tutorial level (simplified)")
-		print("  Note: Full height mechanic requires board.gd updates")
-		print("  Current: Basic 2-color 1-move puzzle")
+		print("[Level 4] Height tutorial level created")
+		print("  Grid: 4x4, 2 colors")
+		print("  Key mechanic: Tile at (1,0) has height=2")
+		print("  Lesson: 2x2 squares must have same color AND same height")
 
 	# Tutorial mode: no cascades (like Level 1)
-	# Focus is purely on basic matching
+	# Focus is purely on learning height mechanic
 	level.lock_on_match = false
 	level.clear_locked_squares = false
 	level.enable_gravity = false
@@ -653,6 +659,13 @@ static func clear_cache() -> void:
 	if OS.is_debug_build():
 		print("Level cache cleared")
 
+## Clear a specific level from cache (useful for testing factory changes)
+static func clear_level_cache(id: int) -> void:
+	if level_cache.has(id):
+		level_cache.erase(id)
+		if OS.is_debug_build():
+			print("Level %d cache cleared" % id)
+
 ## Check if a level is cached
 static func is_cached(id: int) -> bool:
 	return level_cache.has(id)
@@ -664,8 +677,20 @@ static func get_cache_size() -> int:
 ## Main entry point: Create any level by ID
 ## Uses cache and respects auto_generate setting
 static func create_level(id: int) -> LevelData:
+	# DEVELOPMENT: Disable cache in debug builds to see factory changes immediately
+	# This ensures factory function changes are reflected without restarting the editor
+	if OS.is_debug_build() and not enable_debug_cache:
+		if level_cache.has(id):
+			print("[LevelData] DEBUG MODE (cache disabled): Clearing level %d (cache size: %d)" % [id, level_cache.size()])
+			level_cache.erase(id)
+			print("[LevelData] Cache cleared. Will regenerate from factory.")
+		else:
+			print("[LevelData] DEBUG MODE (cache disabled): Level %d not cached, will generate fresh" % id)
+
 	# Check cache first
 	if level_cache.has(id):
+		if OS.is_debug_build():
+			print("[LevelData] Returning CACHED level %d (set enable_debug_cache=false to disable caching)" % id)
 		return level_cache[id]
 
 	# If auto_generate is disabled, return a placeholder
@@ -677,15 +702,17 @@ static func create_level(id: int) -> LevelData:
 		return placeholder
 
 	# Generate and cache
+	print("[LevelData] Generating level %d from factory function..." % id)
 	var level := _generate_level_internal(id)
 	level_cache[id] = level
+	print("[LevelData] Level %d generated and cached. Lock=%s Clear=%s Gravity=%s Refill=%s" % [id, level.lock_on_match, level.clear_locked_squares, level.enable_gravity, level.refill_from_top])
 	return level
 
 ## Internal: Generate a level (called by create_level and pre_generate)
 static func _generate_level_internal(id: int) -> LevelData:
 	# HANDCRAFTED LEVELS ONLY (when prefer_handcrafted = true)
 	# Uses factory functions from "LEVEL FACTORY FUNCTIONS" section
-	
+
 	if prefer_handcrafted:
 		match id:
 			1:

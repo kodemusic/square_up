@@ -62,8 +62,8 @@ func _detect_and_apply_orientation() -> void:
 
 	# Debug output
 	print("[LayoutManager] Orientation detection:")
-	print("  Viewport size: %v" % viewport_size)
-	print("  Window size: %v" % window_size)
+	print("  Viewport size: ", viewport_size)
+	print("  Window size: ", window_size)
 	print("  Portrait mode: %s (height %s width)" % [new_portrait_mode, ">" if new_portrait_mode else "<="])
 	print("  Tall ratio: %.2f (height/width)" % new_tall_ratio)
 	print("  Very tall screen: %s (threshold: %.1f)" % [new_is_very_tall, VERY_TALL_THRESHOLD])

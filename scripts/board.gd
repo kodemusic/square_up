@@ -442,8 +442,14 @@ func load_level(tile_scene: PackedScene, p_tile_container: Node2D, level: LevelD
 	for y in range(level.height):
 		for x in range(level.width):
 			var color_id: int = level.starting_grid[y][x]
-			# Set cell data (assuming height 0 for now, can be extended later)
-			set_cell(x, y, color_id, 0, STATE_NORMAL)
+
+			# Get initial height from level data if available, otherwise default to 1
+			var initial_height: int = 1
+			if level.initial_heights.size() > 0:
+				if y < level.initial_heights.size() and x < level.initial_heights[y].size():
+					initial_height = level.initial_heights[y][x]
+
+			set_cell(x, y, color_id, initial_height, STATE_NORMAL)
 
 	# Spawn tile visuals for each non-empty cell
 	print("Spawning tiles with dimensions: %fx%f, height_step: %f" % [tile_width, tile_height, height_step])
@@ -672,32 +678,54 @@ func has_empty_cells() -> bool:
 
 ## Shuffle the board (Fisher-Yates shuffle of non-empty tiles)
 ## Keeps tiles in their grid positions but randomizes colors
+## Retries until there are valid moves available
 func shuffle_board() -> void:
 	# Collect all non-empty tile colors
 	var colors: Array[int] = []
+	var positions: Array[Vector2i] = []
 	for y in range(height):
 		for x in range(width):
 			var cell: Dictionary = board[y][x]
 			if cell["color"] != COLOR_NONE and cell["state"] == STATE_NORMAL:
 				colors.append(cell["color"])
+				positions.append(Vector2i(x, y))
 
-	# Fisher-Yates shuffle
-	for i in range(colors.size() - 1, 0, -1):
-		var j := randi() % (i + 1)
-		var temp := colors[i]
-		colors[i] = colors[j]
-		colors[j] = temp
+	if colors.size() == 0:
+		print("[Board] No tiles to shuffle")
+		return
 
-	# Redistribute shuffled colors back to board
-	var color_index := 0
-	for y in range(height):
-		for x in range(width):
-			var cell: Dictionary = board[y][x]
-			if cell["color"] != COLOR_NONE and cell["state"] == STATE_NORMAL:
-				cell["color"] = colors[color_index]
-				color_index += 1
+	# Try shuffling up to 10 times until we find a configuration with valid moves
+	var max_attempts := 10
+	var attempt := 0
+	var shuffled_colors: Array[int] = []
+	
+	while attempt < max_attempts:
+		# Create a copy to shuffle
+		shuffled_colors = colors.duplicate()
+		
+		# Fisher-Yates shuffle
+		for i in range(shuffled_colors.size() - 1, 0, -1):
+			var j := randi() % (i + 1)
+			var temp := shuffled_colors[i]
+			shuffled_colors[i] = shuffled_colors[j]
+			shuffled_colors[j] = temp
+		
+		# Temporarily apply shuffle to check for valid moves
+		for i in range(positions.size()):
+			var pos := positions[i]
+			board[pos.y][pos.x]["color"] = shuffled_colors[i]
+		
+		# Check if there are any valid moves
+		if has_valid_moves():
+			print("[Board] Shuffle successful - found valid moves (attempt %d)" % (attempt + 1))
+			break
+		
+		attempt += 1
+	
+	if attempt >= max_attempts:
+		print("[Board] Warning: Shuffle may not have valid moves after %d attempts" % max_attempts)
 
-	# Update visual tiles
+	# Update visual tiles to reflect the new colors
 	_update_all_tile_visuals()
 
 ## Update all tile visuals to match board state
