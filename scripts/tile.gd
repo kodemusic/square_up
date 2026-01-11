@@ -68,6 +68,8 @@ func set_locked(value: bool) -> void:
 
 ## Change the tile's height and rebuild the visual stack
 func set_height(value: int) -> void:
+	if OS.is_debug_build() and height != value:
+		print("[Tile %v] Height changed: %d -> %d" % [grid_pos, height, value])
 	height = value
 	_build_height_stack()
 
@@ -78,7 +80,11 @@ func set_highlighted(value: bool) -> void:
 
 ## Create or get the container node that holds height stack slices
 func _ensure_slices_root() -> void:
-	# Reuse existing container if it exists
+	# Use existing HeightStack node from scene if available
+	if has_node("HeightStack"):
+		slices_root = get_node("HeightStack") as Node2D
+		return
+	# Otherwise check for Slices node (legacy)
 	if has_node("Slices"):
 		slices_root = get_node("Slices") as Node2D
 		return

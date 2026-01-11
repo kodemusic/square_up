@@ -20,6 +20,8 @@ var tile_height: float = 32.0
 
 ## Emitted when tiles are matched and points are awarded
 signal score_awarded(points: int)
+## Emitted when squares are matched (separate from points due to height multipliers)
+signal squares_matched(count: int)
 
 ## Board dimensions in grid units
 @export var width := 8
@@ -162,13 +164,14 @@ func _swap_colors(a: Vector2i, b: Vector2i) -> void:
 	cell_b["color"] = temp
 
 ## Update tile visuals in the tile container after data changes
-## Finds tiles by grid position and updates their color_id
+## Finds tiles by grid position and updates their color_id, height, and locked state
 func update_tile_visuals(container: Node2D) -> void:
 	for tile in container.get_children():
 		if tile is Area2D:
 			var grid_pos: Vector2i = tile.grid_pos
 			var cell: Dictionary = board[grid_pos.y][grid_pos.x]
 			tile.color_id = cell["color"]
+			tile.set_height(cell["height"])
 			tile.set_locked(cell["state"] == STATE_LOCKED)
 
 ## Check if a swap creates at least one 2x2 match
@@ -280,6 +283,7 @@ func _filter_non_overlapping_squares(squares: Array[Vector2i]) -> Array[Vector2i
 ## combo_multiplier: Cascade depth (1 = normal, 2 = first cascade, 3 = second cascade, etc.)
 func award_points_for_matches(positions: Array[Vector2i], points_per_square: int = 10, combo_multiplier: int = 1) -> void:
 	var total_points := 0
+	var squares_count := 0
 	for top_left in positions:
 		# Validate square is fully on board
 		if top_left.x < 0 or top_left.y < 0 or top_left.x + 1 >= width or top_left.y + 1 >= height:
@@ -288,12 +292,14 @@ func award_points_for_matches(positions: Array[Vector2i], points_per_square: int
 		# Award points with height multiplier AND combo multiplier
 		# Formula: base_points * (height + 1) * combo_multiplier
 		total_points += points_per_square * (square_height + 1) * combo_multiplier
-		
+		squares_count += 1
+
 		# Spawn glow effect at center of 2x2 square
 		_spawn_square_glow(top_left, square_height)
-		
+
 	if total_points > 0:
 		emit_signal("score_awarded", total_points)
+		emit_signal("squares_matched", squares_count)
 
 ## Lock all tiles in the given matched squares (no points awarded)
 func lock_squares(positions: Array[Vector2i]) -> void:
@@ -396,9 +402,9 @@ func refill_empty_spaces(colors: Array[int]) -> Array[Vector2i]:
 		for x in range(width):
 			var cell := get_cell(x, y)
 			if cell["color"] == COLOR_NONE:
-				# Spawn random color
+				# Spawn random color with default height=1
 				var random_color: int = colors[randi() % colors.size()]
-				set_cell(x, y, random_color, 0, STATE_NORMAL)
+				set_cell(x, y, random_color, 1, STATE_NORMAL)
 				spawned.append(Vector2i(x, y))
 
 	return spawned
@@ -462,7 +468,7 @@ func load_level(tile_scene: PackedScene, p_tile_container: Node2D, level: LevelD
 				# Set tile properties
 				tile.grid_pos = Vector2i(x, y)
 				tile.color_id = cell["color"]
-				tile.height = cell["height"]
+				tile.set_height(cell["height"])  # Use setter to trigger visual stack rebuild
 
 				# Debug color assignment
 				if (x == 0 and y == 0) or (x == 1 and y == 0) or (x == 2 and y == 0):
@@ -733,13 +739,11 @@ func _update_all_tile_visuals() -> void:
 	if tile_container == null:
 		return
 
-	for y in range(height):
-		for x in range(width):
-			var tile_name := "Tile_%d_%d" % [x, y]
-			var tile := tile_container.get_node_or_null(tile_name)
-			if tile != null:
-				var cell: Dictionary = board[y][x]
-				tile.color_id = cell["color"]
-				# Force visual update
-				if tile.has_method("update_color"):
-					tile.update_color()
+	# Use the same logic as update_tile_visuals()
+	for tile in tile_container.get_children():
+		if tile is Area2D:
+			var grid_pos: Vector2i = tile.grid_pos
+			var cell: Dictionary = board[grid_pos.y][grid_pos.x]
+			tile.color_id = cell["color"]
+			tile.set_height(cell["height"])
+			tile.set_locked(cell["state"] == STATE_LOCKED)

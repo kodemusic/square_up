@@ -210,8 +210,8 @@ static func create_level_2() -> LevelData:
 	level.squares_goal = 2
 
 	# Generate using hybrid approach
-	level.starting_grid = _get_level_2_grid()
-	
+	level.starting_grid = generate_grid_no_squares(5, 5, 2)
+
 	# Verify solvability in debug
 	if OS.is_debug_build():
 		var rules := BoardRules.Rules.from_level_data(level)
@@ -232,7 +232,7 @@ static func create_level_3() -> LevelData:
 	var level := LevelData.new()
 	level.level_id = 3
 	level.level_name = "Three Colors"
-	level.width = 5
+	level.width = 6
 	level.height = 5
 	level.num_colors = 3
 	level.move_limit = 0  # Unlimited
@@ -240,7 +240,7 @@ static func create_level_3() -> LevelData:
 	level.squares_goal = 3
 
 	# Generate random solvable grid with 3 colors (no invalid color 3)
-	level.starting_grid = generate_grid_no_squares(5, 5, 3)
+	level.starting_grid = generate_grid_no_squares(6, 5, 3)
 
 	# Verify solvability in debug
 	if OS.is_debug_build():
@@ -252,7 +252,7 @@ static func create_level_3() -> LevelData:
 		print("  Initial valid moves: %d" % validation["initial_valid_moves"])
 		print("  Shortest solution: %d moves" % validation["shortest_solution"])
 		if not validation["valid"]:
-			push_warning("[Level 3] Validation errors: %s" % validation["errors"])
+			push_warning("[Level 3] Validation errors: ", validation["errors"])
 
 	# Full cascade mechanics enabled
 	level.lock_on_match = true

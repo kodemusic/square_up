@@ -442,8 +442,12 @@ func _apply_gravity() -> void:
 		if tile == null:
 			continue
 
+		# Get the cell data at destination to get correct height for positioning
+		var cell: Dictionary = board.get_cell(to_pos.x, to_pos.y)
+
+		# Calculate target position using the tile's actual height from board data
 		var target_pos: Vector2 = board.grid_to_iso(
-			to_pos.y, to_pos.x, 0,
+			to_pos.y, to_pos.x, cell["height"],
 			TILE_WIDTH, TILE_HEIGHT, HEIGHT_STEP
 		)
 
@@ -456,6 +460,9 @@ func _apply_gravity() -> void:
 		# Update grid_pos AFTER we grabbed the tile from the snapshot
 		tile.grid_pos = to_pos
 		tile.z_index = to_pos.y + to_pos.x
+
+		# Sync tile height from board data (preserves stacking during cascade)
+		tile.set_height(cell["height"])
 
 	# 3) Wait for all tweens to finish (better than timers)
 	for t in tweens:
@@ -482,12 +489,13 @@ func _refill_board() -> void:
 	for spawn_pos in spawned:
 		var tile := tile_scene.instantiate() as Area2D
 		tile.grid_pos = spawn_pos
-		tile.color_id = board.get_cell(spawn_pos.x, spawn_pos.y)["color"]
-		tile.height = 0
+		var cell: Dictionary = board.get_cell(spawn_pos.x, spawn_pos.y)
+		tile.color_id = cell["color"]
+		tile.set_height(cell["height"])  # Use board's height, triggers visual stack build
 
-		# Calculate final position
+		# Calculate final position (use cell's actual height for proper isometric positioning)
 		var final_pos: Vector2 = board.grid_to_iso(
-			spawn_pos.y, spawn_pos.x, 0,
+			spawn_pos.y, spawn_pos.x, cell["height"],
 			TILE_WIDTH, TILE_HEIGHT, HEIGHT_STEP
 		)
 

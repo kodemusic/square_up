@@ -8,6 +8,7 @@ extends Node
 @export_range(0.0, 1.0, 0.05) var board_fill_percentage: float = 0.8 ## How much of anchor to fill (0.8 = 80% fill, 20% padding)
 @export_range(1.0, 10.0, 0.1) var min_zoom: float = 1.0 ## Minimum camera zoom (zoomed out)
 @export_range(1.0, 10.0, 0.1) var max_zoom: float = 5.0 ## Maximum camera zoom (zoomed in)
+@export var enable_width_zoom_modifier: bool = true ## Enable zoom reduction for wider boards (10% per column beyond 5)
 
 ## Reference to the tile scene to spawn
 var tile_scene := preload("res://scenes/Tile.tscn")
@@ -105,6 +106,7 @@ func _ready() -> void:
 
 	# Connect board signals to HUD
 	board.score_awarded.connect(_on_score_awarded)
+	board.squares_matched.connect(_on_squares_matched)
 
 	# Connect input router to track moves
 	input_router.swap_completed.connect(_on_swap_completed)
@@ -120,22 +122,27 @@ func _ready() -> void:
 	moves_count = 0
 	input_router.set_input_enabled(true)
 
+	# Reset HUD completely (clears scores, moves, squares, undo)
+	hud.reset()
+
 	# Initialize HUD with level data
 	hud.set_move_limit(current_level.move_limit)
 	hud.set_squares_goal(current_level.squares_goal)
-	hud.update_score(0)
-	hud.update_moves(0)
 
 ## Handle score updates from board
 func _on_score_awarded(points: int) -> void:
 	var new_score: int = hud.current_score + points
 	hud.update_score(new_score)
 
-	# Show "SQUARE UP!" popup for each square completed (10 points per square)
-	var squares_earned: int = int(points / 10.0)
-	if squares_earned > 0:
-		hud.show_square_popup(points)
-		var goal_reached: bool = hud.add_squares(squares_earned)
+## Handle square matches from board (separate from points due to height multipliers)
+func _on_squares_matched(count: int) -> void:
+	if count > 0:
+		# Show "SQUARE UP!" popup with the points that were awarded
+		# Note: We show the popup here but the points were already handled in _on_score_awarded
+		var points_for_popup: int = count * 10  # Approximate for popup display
+		hud.show_square_popup(points_for_popup)
+
+		var goal_reached: bool = hud.add_squares(count)
 
 		# Check win condition based on squares goal
 		if goal_reached:
@@ -309,6 +316,25 @@ func _pregenerate_next_level() -> void:
 ##  GOLDEN RULE LAYOUT SYSTEM
 ## ========================================================================
 
+## Calculate width-based zoom modifier for wider boards
+## Returns 1.0 for width ≤ 5, then reduces by 10% per column
+## Example: width 6 = 0.9x, width 7 = 0.8x, width 8 = 0.7x
+## Clamped to minimum of 0.5x to prevent excessive zoom-out
+func _calculate_width_zoom_modifier(board_width: int) -> float:
+	if not enable_width_zoom_modifier:
+		return 1.0
+
+	# No modifier for standard 5x5 or smaller boards
+	if board_width <= 5:
+		return 1.0
+
+	# Each column beyond 5 reduces zoom by 10%
+	var columns_beyond_5: int = board_width - 5
+	var modifier: float = 1.0 - (columns_beyond_5 * 0.1)
+
+	# Safety floor: don't zoom out more than 50%
+	return clamp(modifier, 0.5, 1.0)
+
 ## Position the board container relative to the active layout's BoardAnchor
 ## This implements layout-relative positioning (Golden Rule principle #5)
 ## MONUMENT VALLEY SOLUTION: Board scales to feel right, UI scales to fit
@@ -358,6 +384,10 @@ func _position_board_in_layout() -> void:
 	# Clamp zoom to configurable range
 	camera_zoom = clamp(camera_zoom, min_zoom, max_zoom)
 
+	# Apply width-based zoom modifier for wider boards
+	var width_modifier: float = _calculate_width_zoom_modifier(current_level.width)
+	camera_zoom *= width_modifier
+
 	# Apply zoom
 	camera.zoom = Vector2(camera_zoom, camera_zoom)
 
@@ -384,6 +414,11 @@ func _position_board_in_layout() -> void:
 	print("  Board dimensions: %.1f x %.1f" % [board_width, board_height])
 	print("  Anchor size: %v (already accounts for safe area)" % anchor_size)
 	print("  Calculated zoom X: %.2f, Y: %.2f" % [zoom_x, zoom_y])
+	print("  Width zoom modifier: %.2fx (board width: %d, enabled: %s)" % [
+		_calculate_width_zoom_modifier(current_level.width),
+		current_level.width,
+		enable_width_zoom_modifier
+	])
 	print("  Final camera zoom: %.2fx (clamped %.1f-%.1f)" % [camera_zoom, min_zoom, max_zoom])
 	print("  Board visual center: %v" % board_visual_center)
 	print("  Target position: %v" % target_position)
